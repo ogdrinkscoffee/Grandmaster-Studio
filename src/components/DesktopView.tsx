@@ -176,6 +176,7 @@ export const DesktopView: React.FC<AppViewProps> = ({
           {/* Zone 3: Global Search, Telemetry & Controls */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             <GlobalSearch
+              iconOnly
               matches={matches}
               onSelectGame={onRunGameReview}
               onSelectVariant={onSelectVariantToPlay}
