@@ -217,6 +217,22 @@ export function getBoardMaxWidthPx(boardSize?: number): number {
 }
 
 /**
+ * Get CSS variable names for board dimensions based on size in em
+ */
+function getBoardCSSVariables(boardSize?: number): { width: string; height: string } {
+  const percent = Math.min(140, Math.max(60, boardSize || 100));
+  return {
+    width: `${Math.round(5.4 * (percent / 100))}em`,
+    height: `${Math.round(5.4 * (percent / 100))}em`
+  };
+}
+
+/**
+ * Computes the GPU translate3d(x, y, 0) coordinates relative to the board container
+ * so the geometric center of the dragged piece sits directly under the pointer tip.
+ */
+
+/**
  * Computes the GPU translate3d(x, y, 0) coordinates relative to the board container
  * so the geometric center of the dragged piece sits directly under the pointer tip.
  */
@@ -276,7 +292,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
   const autoQueen = runtime.autoQueen !== false;
   const reduceMotion = runtime.batterySaver;
   const keyboardControlEnabled = runtime.keyboardControl;
-  const boardMaxWidth = isMobile ? undefined : `${getBoardMaxWidthPx(runtime.boardSize)}px`;
+  const boardMaxWidth = isMobile ? '100%' : `${getBoardMaxWidthPx(runtime.boardSize)}px`;
 
   const gridHeight = customGrid ? customGrid.length : 8;
   const gridWidth = customGrid ? customGrid[0]?.length || 8 : 8;
