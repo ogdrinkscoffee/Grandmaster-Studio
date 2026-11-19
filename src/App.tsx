@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { animate } from 'motion/react';
 import {
   UserProfile,
@@ -9,18 +9,10 @@ import {
   AppThemeId,
   OpponentMode
 } from './types/chess';
-import { PlayView } from './components/PlayView';
-import { VariantsView } from './components/VariantsView';
-import { PuzzlesView } from './components/PuzzlesView';
-import { GameReviewView } from './components/GameReviewView';
-import { CoachView } from './components/CoachView';
-import { TrainView, TrainSection } from './components/TrainView';
-import { GlobalSearch } from './components/GlobalSearch';
-import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
+import { TrainSection } from './components/TrainView';
 import { SearchActionTarget } from './engine/globalSearch';
 import { hasOpenModalDialog, resolveGlobalNavigationShortcut } from './engine/keyboardShortcuts';
 import { warmUpEngine } from './engine/engineClient';
-import { AchievementToast } from './components/Achievements';
 import {
   ACHIEVEMENTS_KEY,
   AchievementDef,
@@ -34,31 +26,14 @@ import { ENDGAME_PROGRESS_KEY } from './engine/endgameDrills';
 import { OPENING_PROGRESS_KEY } from './engine/openingRepertoire';
 import { DAILY_STREAK_STORAGE_KEY, VISION_BEST_STORAGE_KEY } from './engine/dailyPuzzleStreak';
 import { AdaptivePosture, DEFEATED_BOTS_STORAGE_KEY } from './engine/adaptiveBot';
-import { DASHBOARD_SEEN_RATINGS_KEY, DashboardView } from './components/DashboardView';
-import { SettingsModal } from './components/SettingsModal';
-import { PWAInstallButton } from './components/PWAInstallButton';
-import { ChessPieceIcon } from './components/ChessPieces';
+import { DASHBOARD_SEEN_RATINGS_KEY } from './components/DashboardView';
 import { variantToCustomConfig, CUSTOM_ENGINE_VARIANTS } from './engine/customVariantEngine';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
-import {
-  Swords,
-  Compass,
-  Trophy,
-  Brain,
-  BarChart3,
-  Settings,
-  BatteryCharging,
-  WifiOff,
-  Palette,
-  Sun,
-  Moon,
-  GraduationCap,
-  Keyboard
-} from 'lucide-react';
-import { getAppTheme, APP_THEME_FAMILIES, normalizeThemeSettings } from './theme/themes';
+import { getAppTheme, normalizeThemeSettings } from './theme/themes';
 import { ThemeProvider } from './context/ThemeContext';
-
-type AppTab = 'play' | 'variants' | 'puzzles' | 'train' | 'review' | 'coach' | 'dashboard';
+import { AppTab, AppViewProps } from './components/AppViewProps';
+import { DesktopView } from './components/DesktopView';
+import { MobileView } from './components/MobileView';
 
 const DEFAULT_SETTINGS: UserSettings = {
   appTheme: 'emerald_studio',
@@ -207,6 +182,26 @@ const SEED_MATCHES: GameHistoryItem[] = [
 ];
 
 export default function App() {
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    return window.matchMedia('(max-width: 767px)').matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    setIsMobile(mediaQuery.matches);
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsMobile(e.matches);
+    };
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
   const [activeTab, setActiveTab] = useState<AppTab>('play');
   const [activeVariant, setActiveVariant] = useState<VariantId>('standard');
   const [activeCustomVariant, setActiveCustomVariant] = useState<CustomVariantConfig | null>(null);
@@ -615,438 +610,111 @@ export default function App() {
     setActiveTab(target.tab);
   };
 
-  const navItems: { id: AppTab; label: string; shortLabel: string; icon: React.ReactNode }[] = [
-    { id: 'play', label: 'Play', shortLabel: 'Play', icon: <Swords className="w-4 h-4" /> },
-    { id: 'variants', label: 'Variants & Studio', shortLabel: 'Variants', icon: <Compass className="w-4 h-4" /> },
-    { id: 'puzzles', label: 'Puzzles', shortLabel: 'Puzzles', icon: <Trophy className="w-4 h-4" /> },
-    { id: 'train', label: 'Training', shortLabel: 'Train', icon: <GraduationCap className="w-4 h-4" /> },
-    { id: 'coach', label: 'AI Coach', shortLabel: 'Coach', icon: <Brain className="w-4 h-4" /> },
-    { id: 'dashboard', label: 'Archive', shortLabel: 'Stats', icon: <BarChart3 className="w-4 h-4" /> },
-  ];
+  const viewProps: AppViewProps = {
+    activeTab,
+    onSelectTab: setActiveTab,
+    onSelectNavTab: (tab) => {
+      if (tab === 'variants') setVariantsSubTab('catalog');
+      setActiveTab(tab);
+    },
+    activeVariant,
+    activeCustomVariant,
+    variantsSubTab,
+    studioSeedConfig,
+    onSelectVariantToPlay: handleSelectVariantToPlay,
+    onPlayCustomInArena: handlePlayCustomInArena,
+    onEditVariantRules: handleEditVariantRules,
+    trainSectionRequest,
+    onOpenVisionTrainer: () => {
+      setTrainSectionRequest(prev => ({ section: 'vision', key: (prev?.key ?? 0) + 1 }));
+      setActiveTab('train');
+    },
+    selectedReviewGame,
+    recommendedPuzzleTheme,
+    onStartRecommendedPuzzles: (themeName) => {
+      setRecommendedPuzzleTheme(themeName);
+      setActiveTab('puzzles');
+    },
+    dailyPuzzleRequestKey,
+    onOpenDailyPuzzle: () => {
+      setDailyPuzzleRequestKey(k => k + 1);
+      setActiveTab('puzzles');
+    },
+    botChallengeRequest,
+    onChallengeAdaptiveBot: (posture, mode) => {
+      setActiveVariant('standard');
+      setActiveCustomVariant(null);
+      setBotChallengeRequest(prev => ({
+        botId: 'bot_adaptive_coach',
+        posture,
+        mode,
+        key: (prev?.key ?? 0) + 1
+      }));
+      setActiveTab('play');
+    },
+    profile,
+    matches,
+    currentAppTheme,
+    isLightMode,
+    displayHeaderRapidElo,
+    isOnline,
+    achievementStatuses,
+    activeToast: toastQueue[0] ?? null,
+    onDismissToast: dismissToast,
+    isSettingsOpen,
+    settingsInitialTab,
+    onOpenSettings: (tab) => {
+      setSettingsInitialTab(tab);
+      setIsSettingsOpen(true);
+    },
+    onCloseSettings: () => setIsSettingsOpen(false),
+    isShortcutsOpen,
+    onOpenShortcuts: () => setIsShortcutsOpen(true),
+    onCloseShortcuts: () => setIsShortcutsOpen(false),
+    onSaveGame: handleSaveGame,
+    onRunGameReview: handleRunGameReview,
+    onImportGame: handleImportGame,
+    onUpdatePuzzleElo: handleUpdatePuzzleElo,
+    onUpdateSettings: (newSettings) =>
+      setProfile(prev => ({ ...prev, settings: newSettings })),
+    onToggleColorMode: () =>
+      setProfile(prev => ({
+        ...prev,
+        settings: { ...prev.settings, colorMode: isLightMode ? 'dark' : 'light' }
+      })),
+    onSelectAppTheme: (newTheme: AppThemeId) =>
+      setProfile(prev => ({
+        ...prev,
+        settings: { ...prev.settings, appTheme: newTheme }
+      })),
+    onToggleShortcutSetting: (key, value) =>
+      setProfile(prev => ({
+        ...prev,
+        settings: { ...prev.settings, [key]: value }
+      })),
+    onUpdateProfile: (patch) =>
+      setProfile(prev => ({
+        ...prev,
+        username: patch.username !== undefined ? patch.username : prev.username,
+        title: patch.title !== undefined ? patch.title : prev.title,
+      })),
+    onRestoreDataPayload: (payload: unknown) => {
+      const p = payload as { profile?: UserProfile; matches?: GameHistoryItem[] } | null;
+      if (p?.profile) {
+        setProfile({
+          ...p.profile,
+          settings: normalizeThemeSettings({ ...DEFAULT_SETTINGS, ...(p.profile.settings || {}) })
+        });
+      }
+      if (p?.matches) setMatches(p.matches);
+    },
+    onResetLocalData: handleResetLocalData,
+    onGlobalHelpAction: handleGlobalHelpAction,
+  };
 
   return (
     <ThemeProvider settings={profile.settings}>
-      <div
-        className="relative isolate min-h-screen flex flex-col"
-        style={{
-          color: 'var(--gm-text)'
-        }}
-      >
-        <div
-          aria-hidden="true"
-          className="fixed inset-0 -z-10 pointer-events-none"
-          style={{
-            backgroundColor: 'var(--bg-color)',
-            backgroundImage: 'var(--bg-gradient)',
-            transform: 'translateZ(0)'
-          }}
-        />
-        {/* 3-Zone Studio Top Navigation Bar */}
-        <header
-          className="sticky top-0 z-40 border-b backdrop-blur-md"
-          style={{ backgroundColor: 'var(--gm-header)', borderColor: 'var(--gm-border)' }}
-        >
-          <div
-            className="absolute inset-x-0 bottom-[-1px] h-px pointer-events-none"
-            style={{
-              backgroundImage: 'linear-gradient(90deg, transparent, var(--gm-accent), var(--gm-accent-2), transparent)',
-              opacity: 0.7
-            }}
-          />
-          <div className="max-w-7xl mx-auto h-14 px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-3">
-            {/* Zone 1: Brand Emblem */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('play')}
-              className="flex items-center gap-2.5 cursor-pointer group select-none text-left focus:outline-none shrink-0"
-            >
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center p-1 transition-transform group-hover:scale-105"
-                style={{
-                  backgroundImage: `linear-gradient(135deg, ${currentAppTheme.accentHex}33, ${currentAppTheme.accent2Hex}26)`,
-                  backgroundColor: currentAppTheme.cardSecondaryHex,
-                  border: `1px solid ${currentAppTheme.accentHex}55`,
-                  boxShadow: `0 0 18px -4px ${currentAppTheme.accentHex}66`
-                }}
-              >
-                <ChessPieceIcon type="n" color="w" set={profile.settings.pieceSet} />
-              </div>
-              <span className="font-display font-extrabold text-sm sm:text-base tracking-tight whitespace-nowrap" style={{ color: currentAppTheme.textPrimary }}>
-                Grandmaster Studio
-              </span>
-            </button>
-
-            {/* Zone 2: Desktop Primary Navigation Tabs */}
-            <nav className="hidden md:flex items-center h-full gap-0.5 xl:gap-1 min-w-0" aria-label="Main navigation">
-              {navItems.map(item => {
-                const isActive = activeTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      if (item.id === 'variants') setVariantsSubTab('catalog');
-                      setActiveTab(item.id);
-                    }}
-                    aria-label={item.label}
-                    title={item.label}
-                    className="relative h-full flex items-center gap-1.5 px-2 xl:px-3 text-xs font-bold transition whitespace-nowrap"
-                    style={{
-                      color: isActive ? currentAppTheme.accentHex : currentAppTheme.textSecondary
-                    }}
-                  >
-                    {item.icon}
-                    <span className="hidden lg:inline xl:hidden">{item.shortLabel}</span>
-                    <span className="hidden xl:inline">{item.label}</span>
-                    {isActive && (
-                      <span
-                        className="absolute bottom-0 left-2 right-2 h-0.5 rounded-t-full"
-                        style={{
-                          backgroundImage: `linear-gradient(90deg, ${currentAppTheme.accentHex}, ${currentAppTheme.accent2Hex})`,
-                          boxShadow: `0 0 10px ${currentAppTheme.accentHex}`
-                        }}
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-
-            {/* Zone 3: Global Search, Telemetry & Controls */}
-            <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-              <GlobalSearch
-                matches={matches}
-                onSelectGame={handleRunGameReview}
-                onSelectVariant={handleSelectVariantToPlay}
-                onSelectCustomVariant={handlePlayCustomInArena}
-                onExecuteHelpAction={handleGlobalHelpAction}
-              />
-
-              <PWAInstallButton variant="compact" />
-
-              {profile.settings.batterySaver && (
-                <span
-                  className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold"
-                  style={{ color: currentAppTheme.accentHex }}
-                  title="Battery Saver Mode Active"
-                >
-                  <BatteryCharging className="w-3.5 h-3.5" />
-                  <span>Eco</span>
-                </span>
-              )}
-
-              {/* Offline indicator only shown when offline */}
-              {!isOnline && (
-                <span
-                  className="hidden sm:inline-flex items-center gap-1 text-[11px] font-mono text-amber-500"
-                  title="Offline · Local Encrypted Vault"
-                >
-                  <WifiOff className="w-3.5 h-3.5" />
-                  <span>Offline</span>
-                </span>
-              )}
-
-              {/* Quick 10 App Theme Switcher */}
-              <label
-                className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs cursor-pointer"
-                style={{
-                  backgroundColor: currentAppTheme.cardSecondaryHex,
-                  borderColor: currentAppTheme.cardBorderHex
-                }}
-              >
-                <Palette className="w-3.5 h-3.5 shrink-0" style={{ color: currentAppTheme.accentHex }} />
-                <select
-                  value={currentAppTheme.id}
-                  aria-label="Select app theme"
-                  onChange={e => {
-                    const newTheme = e.target.value as AppThemeId;
-                    setProfile(prev => ({
-                      ...prev,
-                      settings: { ...prev.settings, appTheme: newTheme }
-                    }));
-                  }}
-                  className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer"
-                  style={{ color: currentAppTheme.textPrimary }}
-                >
-                  {APP_THEME_FAMILIES.map(t => (
-                    <option
-                      key={t.id}
-                      value={t.id}
-                      style={{ backgroundColor: currentAppTheme.cardHex, color: currentAppTheme.textPrimary }}
-                    >
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {/* Dark / Light Mode Toggle */}
-              <button
-                type="button"
-                role="switch"
-                aria-checked={isLightMode}
-                aria-label="Light mode"
-                title={isLightMode ? 'Switch to dark mode' : 'Switch to light mode'}
-                onClick={() =>
-                  setProfile(prev => ({
-                    ...prev,
-                    settings: { ...prev.settings, colorMode: isLightMode ? 'dark' : 'light' }
-                  }))
-                }
-                className="relative h-8 w-[58px] rounded-full border shrink-0"
-                style={{
-                  backgroundColor: 'var(--gm-card-2)',
-                  borderColor: 'var(--gm-border)'
-                }}
-              >
-                <Moon
-                  className="absolute left-[9px] top-1/2 -translate-y-1/2 w-3.5 h-3.5"
-                  style={{ color: 'var(--gm-muted)' }}
-                />
-                <Sun
-                  className="absolute right-[9px] top-1/2 -translate-y-1/2 w-3.5 h-3.5"
-                  style={{ color: 'var(--gm-muted)' }}
-                />
-                <span
-                  className="absolute top-[3px] left-[3px] w-6 h-6 rounded-full flex items-center justify-center shadow-md transition-transform duration-150"
-                  style={{
-                    transform: isLightMode ? 'translateX(26px)' : 'translateX(0px)',
-                    backgroundImage: 'linear-gradient(135deg, var(--gm-accent), var(--gm-accent-2))',
-                    color: 'var(--gm-accent-text)'
-                  }}
-                >
-                  {isLightMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-                </span>
-              </button>
-
-              {/* Rapid Rating Metric */}
-              <button
-                type="button"
-                onClick={() => setActiveTab('dashboard')}
-                className="hidden sm:inline-flex text-xs font-mono font-bold tabular-nums hover:opacity-80 transition whitespace-nowrap"
-                style={{ color: currentAppTheme.accentHex }}
-                title="View Rating Archive & Dashboard"
-              >
-                {displayHeaderRapidElo} Elo
-              </button>
-
-              {/* Keyboard Shortcuts Trigger */}
-              <button
-                type="button"
-                onClick={() => setIsShortcutsOpen(true)}
-                aria-label="Keyboard shortcuts"
-                className="hidden sm:inline-flex p-2 rounded-lg border transition hover:opacity-80"
-                style={{
-                  backgroundColor: currentAppTheme.cardSecondaryHex,
-                  borderColor: currentAppTheme.cardBorderHex,
-                  color: currentAppTheme.textPrimary
-                }}
-                title="Keyboard Shortcuts (?)"
-              >
-                <Keyboard className="w-4 h-4" />
-              </button>
-
-              {/* Settings Trigger */}
-              <button
-                type="button"
-                onClick={() => {
-                  setSettingsInitialTab(undefined);
-                  setIsSettingsOpen(true);
-                }}
-                aria-label="Open settings"
-                className="p-2 rounded-lg border transition hover:opacity-80"
-                style={{
-                  backgroundColor: currentAppTheme.cardSecondaryHex,
-                  borderColor: currentAppTheme.cardBorderHex,
-                  color: currentAppTheme.textPrimary
-                }}
-                title="Customization & Settings (,)"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* Main Workspace */}
-        <main className="flex-1 pb-20 md:pb-8">
-          {activeTab === 'play' && (
-            <PlayView
-              initialVariant={activeVariant}
-              customVariantConfig={activeCustomVariant}
-              settings={profile.settings}
-              playerRapidElo={profile.ratings.rapid}
-              recentGames={matches}
-              botChallengeRequest={botChallengeRequest}
-              onSaveGame={handleSaveGame}
-              onRunGameReview={handleRunGameReview}
-              onUpdateSettings={(newSettings) =>
-                setProfile(prev => ({ ...prev, settings: newSettings }))
-              }
-              onEditVariantRules={handleEditVariantRules}
-            />
-          )}
-
-          {activeTab === 'variants' && (
-            <VariantsView
-              initialSubTab={variantsSubTab}
-              initialCustomConfig={studioSeedConfig}
-              onSelectVariant={handleSelectVariantToPlay}
-              onPlayCustomInArena={handlePlayCustomInArena}
-            />
-          )}
-
-          {activeTab === 'puzzles' && (
-            <PuzzlesView
-              userPuzzleElo={profile.ratings.puzzles}
-              initialTheme={recommendedPuzzleTheme}
-              initialDailyRequestKey={dailyPuzzleRequestKey}
-              onRatingChange={handleUpdatePuzzleElo}
-            />
-          )}
-
-          {activeTab === 'train' && (
-            <TrainView
-              initialSection={trainSectionRequest?.section}
-              sectionRequestKey={trainSectionRequest?.key}
-            />
-          )}
-
-          {activeTab === 'review' && selectedReviewGame && (
-            <GameReviewView
-              game={selectedReviewGame}
-              playerElo={profile.ratings.rapid}
-              onBack={() => setActiveTab('dashboard')}
-            />
-          )}
-
-          {activeTab === 'coach' && (
-            <CoachView
-              profile={profile}
-              recentGames={matches}
-              onStartRecommendedPuzzles={(themeName) => {
-                setRecommendedPuzzleTheme(themeName);
-                setActiveTab('puzzles');
-              }}
-              onChallengeAdaptiveBot={(posture, mode) => {
-                setActiveVariant('standard');
-                setActiveCustomVariant(null);
-                setBotChallengeRequest(prev => ({
-                  botId: 'bot_adaptive_coach',
-                  posture,
-                  mode,
-                  key: (prev?.key ?? 0) + 1
-                }));
-                setActiveTab('play');
-              }}
-            />
-          )}
-
-          {activeTab === 'dashboard' && (
-            <DashboardView
-              profile={profile}
-              matches={matches}
-              onReviewGame={handleRunGameReview}
-              onPlayNewGame={() => setActiveTab('play')}
-              onImportGame={handleImportGame}
-              onOpenPuzzles={() => setActiveTab('puzzles')}
-              onOpenDailyPuzzle={() => {
-                setDailyPuzzleRequestKey(k => k + 1);
-                setActiveTab('puzzles');
-              }}
-              onOpenVisionTrainer={() => {
-                setTrainSectionRequest(prev => ({ section: 'vision', key: (prev?.key ?? 0) + 1 }));
-                setActiveTab('train');
-              }}
-              achievements={achievementStatuses}
-            />
-          )}
-        </main>
-
-        {/* Mobile Bottom Navigation Bar */}
-        <nav
-          className="md:hidden fixed bottom-0 left-0 right-0 z-40 h-14 backdrop-blur-lg border-t px-2 flex items-center justify-around"
-          style={{
-            backgroundColor: 'var(--gm-header)',
-            borderColor: 'var(--gm-border)'
-          }}
-        >
-          {navItems.map(item => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  if (item.id === 'variants') setVariantsSubTab('catalog');
-                  setActiveTab(item.id);
-                }}
-                className="flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-bold transition"
-                style={{
-                  color: isActive ? currentAppTheme.accentHex : currentAppTheme.textSecondary
-                }}
-              >
-                {item.icon}
-                <span>{item.shortLabel}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        <AchievementToast
-          achievement={toastQueue[0] ?? null}
-          onDismiss={dismissToast}
-          onOpen={() => {
-            dismissToast();
-            setActiveTab('dashboard');
-          }}
-        />
-
-        {/* Settings & Customization Modal */}
-        <SettingsModal
-          isOpen={isSettingsOpen}
-          initialTab={settingsInitialTab}
-          onClose={() => setIsSettingsOpen(false)}
-          settings={profile.settings}
-          onSaveSettings={(newSettings) =>
-            setProfile(prev => ({ ...prev, settings: newSettings }))
-          }
-          fullDataPayload={{ profile, matches }}
-          onRestoreDataPayload={(payload: unknown) => {
-            const p = payload as { profile?: UserProfile; matches?: GameHistoryItem[] } | null;
-            if (p?.profile) {
-              setProfile({
-                ...p.profile,
-                settings: normalizeThemeSettings({ ...DEFAULT_SETTINGS, ...(p.profile.settings || {}) })
-              });
-            }
-            if (p?.matches) setMatches(p.matches);
-          }}
-          profile={{ username: profile.username, title: profile.title }}
-          onUpdateProfile={(patch) =>
-            setProfile(prev => ({
-              ...prev,
-              username: patch.username !== undefined ? patch.username : prev.username,
-              title: patch.title !== undefined ? patch.title : prev.title,
-            }))
-          }
-          onResetLocalData={handleResetLocalData}
-        />
-
-        {/* Keyboard Shortcuts Overlay */}
-        <KeyboardShortcutsModal
-          isOpen={isShortcutsOpen}
-          onClose={() => setIsShortcutsOpen(false)}
-          keyboardControl={Boolean(profile.settings.keyboardControl)}
-          notationInput={Boolean(profile.settings.notationInput)}
-          onToggleSetting={(key, value) =>
-            setProfile(prev => ({
-              ...prev,
-              settings: { ...prev.settings, [key]: value }
-            }))
-          }
-        />
-      </div>
+      {isMobile ? <MobileView {...viewProps} /> : <DesktopView {...viewProps} />}
     </ThemeProvider>
   );
 }
