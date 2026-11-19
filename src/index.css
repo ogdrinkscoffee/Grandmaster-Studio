@@ -1,0 +1,272 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  --font-display: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --bg-color: #070b12;
+  --gm-bg: #070b12;
+  --bg-gradient: none;
+  --gm-bg-gradient: none;
+  --gm-header: rgba(9, 14, 22, 0.78);
+  --gm-card: #0f1622;
+  --gm-card-2: #162132;
+  --gm-border: rgba(52, 211, 153, 0.16);
+  --gm-accent: #10b981;
+  --gm-accent-2: #22d3ee;
+  --gm-accent-text: #022c22;
+  --gm-text: #f1f5f9;
+  --gm-text-2: #9fb3c8;
+  --gm-muted: #6b8197;
+  --gm-hover: rgba(16, 185, 129, 0.08);
+
+  --square-light: #e2e8f0;
+  --square-dark: #475569;
+  --square-selected: #10b981;
+  --square-last-move: rgba(16, 185, 129, 0.35);
+  --coord-light: #475569;
+  --coord-dark: #e2e8f0;
+  --square-tex-light: none;
+  --square-tex-dark: none;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--gm-bg);
+    color: var(--gm-text);
+    line-height: 1.5;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-variant-ligatures: none;
+  font-feature-settings: "zero" 1;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Custom sleek scrollbar adapting to active theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gm-border);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gm-muted);
+}
+
+/* Hide scrollbars where horizontal rail should stay clean */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes modalReveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-modal-reveal {
+  animation: modalReveal 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pieceSettle {
+  0% {
+    transform: scale(1.16) translateY(-3px);
+  }
+  65% {
+    transform: scale(0.96) translateY(0);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-piece-settle {
+  animation: pieceSettle 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+/* CSS-variable-driven board shells & squares with zero color transitions */
+.chess-board-shell {
+  background-color: var(--square-dark);
+  transition: none;
+}
+
+.chess-square-btn {
+  transition: none;
+}
+
+.chess-sq-light {
+  background-color: var(--square-light);
+  background-image: var(--square-tex-light);
+}
+
+.chess-sq-dark {
+  background-color: var(--square-dark);
+  background-image: var(--square-tex-dark);
+}
+
+.chess-sq-lastmove {
+  background-color: var(--square-last-move);
+  background-image: none;
+}
+
+.chess-sq-premove-light {
+  background-color: #991b1b;
+  background-image: none;
+}
+
+.chess-sq-premove-dark {
+  background-color: #7f1d1d;
+  background-image: none;
+}
+
+.chess-sq-selected {
+  background-color: var(--square-selected);
+  background-image: none;
+}
+
+.chess-coord-light {
+  color: var(--coord-light);
+}
+
+.chess-coord-dark {
+  color: var(--coord-dark);
+}
+
+/* Disable expensive CSS filters, shadows, and transitions across board squares & pieces while actively dragging */
+.chess-board-dragging .chess-piece-svg {
+  filter: none !important;
+  transition: none !important;
+}
+
+.chess-board-dragging .chess-square-btn {
+  transition: none !important;
+  box-shadow: none !important;
+}
+
+.chess-board-dragging [data-board-frame] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Signature board frame ornaments */
+@keyframes boardOrnPulse {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  50% { opacity: 0.78; filter: brightness(1.35); }
+}
+
+@keyframes boardOrnTwinkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  45% { opacity: 0.55; transform: scale(0.82); }
+  60% { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes boardFrameSheen {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  55%, 100% { transform: translateX(220%) skewX(-18deg); }
+}
+
+.board-orn-pulse {
+  animation: boardOrnPulse 2.8s ease-in-out infinite;
+}
+
+.board-orn-twinkle {
+  animation: boardOrnTwinkle 3.2s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@keyframes boardOrnFlicker {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  3% { opacity: 0.35; filter: brightness(1.8); }
+  5% { opacity: 1; filter: brightness(1.2); }
+  38% { opacity: 1; filter: brightness(1); }
+  40% { opacity: 0.55; filter: brightness(1.6); }
+  41% { opacity: 1; filter: brightness(1.3); }
+  43% { opacity: 0.7; }
+  45% { opacity: 1; filter: brightness(1); }
+  78% { opacity: 0.9; filter: brightness(1.15); }
+}
+
+.board-orn-flicker {
+  animation: boardOrnFlicker 3.4s steps(1, end) infinite;
+}
+
+.board-frame-sheen {
+  width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+  animation: boardFrameSheen 6.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-modal-reveal,
+  .animate-piece-settle,
+  .board-orn-pulse,
+  .board-orn-twinkle,
+  .board-orn-flicker,
+  .board-frame-sheen {
+    animation: none !important;
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Grandmaster Studio - Offline Chess, Stockfish & Variants",
+  "description": "High-performance offline chess dashboard featuring Stockfish analysis, 36 chess variants, adaptive puzzle trainer, AI grandmaster coach, and encrypted cloud sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
