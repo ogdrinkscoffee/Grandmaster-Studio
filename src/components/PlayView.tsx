@@ -2694,8 +2694,8 @@ export const PlayView: React.FC<PlayViewProps> = ({
                             color: theme.textPrimary
                           }}
                         >
-                          <option value="left" style={{ backgroundColor: theme.cardHex }}>Show Left</option>
-                          <option value="right" style={{ backgroundColor: theme.cardHex }}>Show Right</option>
+                          <option value="left" style={{ backgroundColor: theme.cardHex }}>{isMobile ? 'Show Above' : 'Show Left'}</option>
+                          <option value="right" style={{ backgroundColor: theme.cardHex }}>{isMobile ? 'Show Below' : 'Show Right'}</option>
                           <option value="hidden" style={{ backgroundColor: theme.cardHex }}>Hidden</option>
                         </select>
                       </label>
@@ -3102,8 +3102,8 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
           {/* EvalBar + ChessBoard */}
                     <div className="flex flex-col items-center gap-2.5 w-full">
-                      {/* Horizontal eval bar on mobile - placed below top clock */}
-                      {isMobile && !evalHidden && (
+                      {/* Horizontal eval bar on mobile - placed above board when position is 'left' */}
+                      {isMobile && !evalHidden && settings.evalBarPosition === 'left' && (
                         <EvalBar
                           scoreCp={evalScore}
                           isFlipped={effectiveIsFlipped}
@@ -3136,6 +3136,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
                             customShieldedPos={customState.shieldedPos ?? null}
                             isPlacingDuck={isPlacingDuck}
                             isFlipped={effectiveIsFlipped}
+                            isMobile={isMobile}
                             theme={settings.boardTheme}
                             pieceSet={settings.pieceSet}
                             showCoordinates={settings.showCoordinates}
@@ -3162,6 +3163,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
                               <ChessBoard
                                 chess={boardToRender}
                                 isFlipped={effectiveIsFlipped}
+                                isMobile={isMobile}
                                 theme={settings.boardTheme}
                                 pieceSet={settings.pieceSet}
                                 showCoordinates={settings.showCoordinates}
@@ -3201,6 +3203,18 @@ export const PlayView: React.FC<PlayViewProps> = ({
                           />
                         )}
                       </div>
+          
+                      {/* Horizontal eval bar on mobile - placed below board when position is 'right' */}
+                      {isMobile && !evalHidden && settings.evalBarPosition === 'right' && (
+                        <EvalBar
+                          scoreCp={evalScore}
+                          isFlipped={effectiveIsFlipped}
+                          isEvaluating={isEvaluating}
+                          engineDepth={selectedBot.depth + 12}
+                          position={settings.evalBarPosition}
+                          horizontal
+                        />
+                      )}
                     </div>
 
           {/* Bottom Plate */}

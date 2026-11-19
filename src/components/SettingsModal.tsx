@@ -637,8 +637,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                     color: currentTheme.textPrimary
                                   }}
                                 >
-                                  <option value="left">Left of Board</option>
-                                  <option value="right">Right of Board</option>
+                                  <option value="left">{isMobile ? 'Above Board' : 'Left of Board'}</option>
+                                  <option value="right">{isMobile ? 'Below Board' : 'Right of Board'}</option>
                                   <option value="hidden">Hidden (Focus Mode)</option>
                                 </select>
                               </div>
