@@ -63,6 +63,7 @@ export const MobileView: React.FC<AppViewProps> = ({
   isLightMode,
   displayHeaderRapidElo,
   isOnline,
+  isMobile,
   achievementStatuses,
   activeToast,
   onDismissToast,
@@ -254,19 +255,20 @@ export const MobileView: React.FC<AppViewProps> = ({
       {/* Main Workspace */}
       <main className="flex-1 pb-20">
         {activeTab === 'play' && (
-          <PlayView
-            initialVariant={activeVariant}
-            customVariantConfig={activeCustomVariant}
-            settings={profile.settings}
-            playerRapidElo={profile.ratings.rapid}
-            recentGames={matches}
-            botChallengeRequest={botChallengeRequest}
-            onSaveGame={onSaveGame}
-            onRunGameReview={onRunGameReview}
-            onUpdateSettings={onUpdateSettings}
-            onEditVariantRules={onEditVariantRules}
-          />
-        )}
+                  <PlayView
+                    initialVariant={activeVariant}
+                    customVariantConfig={activeCustomVariant}
+                    settings={profile.settings}
+                    playerRapidElo={profile.ratings.rapid}
+                    recentGames={matches}
+                    botChallengeRequest={botChallengeRequest}
+                    onSaveGame={onSaveGame}
+                    onRunGameReview={onRunGameReview}
+                    onUpdateSettings={onUpdateSettings}
+                    onEditVariantRules={onEditVariantRules}
+                    isMobile={isMobile}
+                  />
+                )}
 
         {activeTab === 'variants' && (
           <VariantsView
@@ -364,17 +366,18 @@ export const MobileView: React.FC<AppViewProps> = ({
 
       {/* Settings & Customization Modal */}
       <SettingsModal
-        isOpen={isSettingsOpen}
-        initialTab={settingsInitialTab}
-        onClose={onCloseSettings}
-        settings={profile.settings}
-        onSaveSettings={onUpdateSettings}
-        fullDataPayload={{ profile, matches }}
-        onRestoreDataPayload={onRestoreDataPayload}
-        profile={{ username: profile.username, title: profile.title }}
-        onUpdateProfile={onUpdateProfile}
-        onResetLocalData={onResetLocalData}
-      />
+              isOpen={isSettingsOpen}
+              initialTab={settingsInitialTab}
+              onClose={onCloseSettings}
+              settings={profile.settings}
+              onSaveSettings={onUpdateSettings}
+              fullDataPayload={{ profile, matches }}
+              onRestoreDataPayload={onRestoreDataPayload}
+              profile={{ username: profile.username, title: profile.title }}
+              onUpdateProfile={onUpdateProfile}
+              onResetLocalData={onResetLocalData}
+              isMobile={isMobile}
+            />
 
       {/* Keyboard Shortcuts Overlay */}
       <KeyboardShortcutsModal

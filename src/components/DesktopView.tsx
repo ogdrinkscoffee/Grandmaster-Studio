@@ -330,6 +330,7 @@ export const DesktopView: React.FC<AppViewProps> = ({
             onRunGameReview={onRunGameReview}
             onUpdateSettings={onUpdateSettings}
             onEditVariantRules={onEditVariantRules}
+            isMobile={false}
           />
         )}
 
@@ -401,17 +402,18 @@ export const DesktopView: React.FC<AppViewProps> = ({
 
       {/* Settings & Customization Modal */}
       <SettingsModal
-        isOpen={isSettingsOpen}
-        initialTab={settingsInitialTab}
-        onClose={onCloseSettings}
-        settings={profile.settings}
-        onSaveSettings={onUpdateSettings}
-        fullDataPayload={{ profile, matches }}
-        onRestoreDataPayload={onRestoreDataPayload}
-        profile={{ username: profile.username, title: profile.title }}
-        onUpdateProfile={onUpdateProfile}
-        onResetLocalData={onResetLocalData}
-      />
+              isOpen={isSettingsOpen}
+              initialTab={settingsInitialTab}
+              onClose={onCloseSettings}
+              settings={profile.settings}
+              onSaveSettings={onUpdateSettings}
+              fullDataPayload={{ profile, matches }}
+              onRestoreDataPayload={onRestoreDataPayload}
+              profile={{ username: profile.username, title: profile.title }}
+              onUpdateProfile={onUpdateProfile}
+              onResetLocalData={onResetLocalData}
+              isMobile={false}
+            />
 
       {/* Keyboard Shortcuts Overlay */}
       <KeyboardShortcutsModal

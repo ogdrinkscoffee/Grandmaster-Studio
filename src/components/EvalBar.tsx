@@ -8,6 +8,7 @@ interface EvalBarProps {
   engineDepth?: number;
   isEvaluating?: boolean;
   position?: 'left' | 'right' | 'hidden';
+  horizontal?: boolean;
 }
 
 export const EvalBar: React.FC<EvalBarProps> = ({
@@ -15,7 +16,8 @@ export const EvalBar: React.FC<EvalBarProps> = ({
   isFlipped,
   engineDepth = 16,
   isEvaluating = false,
-  position = 'left'
+  position = 'left',
+  horizontal = false
 }) => {
   const { theme } = useAppTheme();
   if (position === 'hidden') return null;
@@ -30,6 +32,74 @@ export const EvalBar: React.FC<EvalBarProps> = ({
   const topSection = isFlipped ? whiteSection : blackSection;
   const bottomSection = isFlipped ? blackSection : whiteSection;
 
+  if (horizontal) {
+    // Horizontal layout: white on left, black on right (or mirrored when flipped)
+    const whiteWidthPercent = whiteWinChance;
+    const blackWidthPercent = 100 - whiteWinChance;
+    const whiteSectionBg = isFlipped ? blackSection.bg : whiteSection.bg;
+    const whiteSectionFg = isFlipped ? blackSection.fg : whiteSection.fg;
+    const blackSectionBg = isFlipped ? whiteSection.bg : blackSection.bg;
+    const blackSectionFg = isFlipped ? whiteSection.fg : blackSection.fg;
+
+    return (
+      <div
+        className="flex flex-row items-center justify-between self-stretch min-h-[32px] w-full rounded-lg overflow-hidden relative select-none shrink-0"
+        style={{
+          border: `1px solid ${theme.cardBorderHex}`,
+          backgroundColor: '#1a1f29',
+          boxShadow: '0 8px 20px rgba(0, 0, 0, 0.22)'
+        }}
+        title={`Engine Evaluation: ${evalText} (White win chance: ${whiteWinChance}%)`}
+        aria-label={`Evaluation bar: ${evalText}`}
+      >
+        {/* White section (left) */}
+        <div
+          className="h-full transition-[width] duration-300 ease-out flex flex-col justify-start items-center pt-0.5 text-[10px] font-bold font-mono tabular-nums"
+          style={{
+            width: `${whiteWidthPercent}%`,
+            backgroundColor: whiteSectionBg,
+            color: whiteSectionFg
+          }}
+        >
+          {whiteSection.showText && (
+            <span className="px-0.5 tracking-tight">{evalText}</span>
+          )}
+        </div>
+
+        {/* Black section (right) */}
+        <div
+          className="h-full transition-[width] duration-300 ease-out flex flex-col justify-end items-center pb-0.5 text-[10px] font-bold font-mono tabular-nums"
+          style={{
+            width: `${blackWidthPercent}%`,
+            backgroundColor: blackSectionBg,
+            color: blackSectionFg
+          }}
+        >
+          {blackSection.showText && (
+            <span className="px-0.5 tracking-tight">{evalText}</span>
+          )}
+        </div>
+
+        {/* Centered hairline + depth indicator */}
+        <div
+          className="absolute top-1/2 left-0 right-0 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center"
+        >
+          <div
+            className="text-[8px] font-mono font-bold px-1 py-0.5 rounded uppercase tracking-tighter whitespace-nowrap shadow-sm"
+            style={{
+              backgroundColor: theme.cardHex,
+              color: theme.accentHex,
+              border: `1px solid ${theme.cardBorderHex}`
+            }}
+          >
+            {isEvaluating ? '•••' : `D${engineDepth}`}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Vertical layout (original)
   return (
     <div
       className="flex flex-col items-center justify-between self-stretch min-h-[200px] w-7 sm:w-8 rounded-lg overflow-hidden relative select-none shrink-0"

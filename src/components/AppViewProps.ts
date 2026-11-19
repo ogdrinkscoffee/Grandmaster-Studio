@@ -49,8 +49,9 @@ export interface AppViewProps {
   matches: GameHistoryItem[];
   currentAppTheme: AppThemeConfig;
   isLightMode: boolean;
-  displayHeaderRapidElo: number;
-  isOnline: boolean;
+    displayHeaderRapidElo: number;
+    isOnline: boolean;
+    isMobile: boolean;
 
   achievementStatuses: AchievementStatus[];
   activeToast: AchievementDef | null;

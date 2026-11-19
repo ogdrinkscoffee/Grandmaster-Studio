@@ -611,106 +611,107 @@ export default function App() {
   };
 
   const viewProps: AppViewProps = {
-    activeTab,
-    onSelectTab: setActiveTab,
-    onSelectNavTab: (tab) => {
-      if (tab === 'variants') setVariantsSubTab('catalog');
-      setActiveTab(tab);
-    },
-    activeVariant,
-    activeCustomVariant,
-    variantsSubTab,
-    studioSeedConfig,
-    onSelectVariantToPlay: handleSelectVariantToPlay,
-    onPlayCustomInArena: handlePlayCustomInArena,
-    onEditVariantRules: handleEditVariantRules,
-    trainSectionRequest,
-    onOpenVisionTrainer: () => {
-      setTrainSectionRequest(prev => ({ section: 'vision', key: (prev?.key ?? 0) + 1 }));
-      setActiveTab('train');
-    },
-    selectedReviewGame,
-    recommendedPuzzleTheme,
-    onStartRecommendedPuzzles: (themeName) => {
-      setRecommendedPuzzleTheme(themeName);
-      setActiveTab('puzzles');
-    },
-    dailyPuzzleRequestKey,
-    onOpenDailyPuzzle: () => {
-      setDailyPuzzleRequestKey(k => k + 1);
-      setActiveTab('puzzles');
-    },
-    botChallengeRequest,
-    onChallengeAdaptiveBot: (posture, mode) => {
-      setActiveVariant('standard');
-      setActiveCustomVariant(null);
-      setBotChallengeRequest(prev => ({
-        botId: 'bot_adaptive_coach',
-        posture,
-        mode,
-        key: (prev?.key ?? 0) + 1
-      }));
-      setActiveTab('play');
-    },
-    profile,
-    matches,
-    currentAppTheme,
-    isLightMode,
-    displayHeaderRapidElo,
-    isOnline,
-    achievementStatuses,
-    activeToast: toastQueue[0] ?? null,
-    onDismissToast: dismissToast,
-    isSettingsOpen,
-    settingsInitialTab,
-    onOpenSettings: (tab) => {
-      setSettingsInitialTab(tab);
-      setIsSettingsOpen(true);
-    },
-    onCloseSettings: () => setIsSettingsOpen(false),
-    isShortcutsOpen,
-    onOpenShortcuts: () => setIsShortcutsOpen(true),
-    onCloseShortcuts: () => setIsShortcutsOpen(false),
-    onSaveGame: handleSaveGame,
-    onRunGameReview: handleRunGameReview,
-    onImportGame: handleImportGame,
-    onUpdatePuzzleElo: handleUpdatePuzzleElo,
-    onUpdateSettings: (newSettings) =>
-      setProfile(prev => ({ ...prev, settings: newSettings })),
-    onToggleColorMode: () =>
-      setProfile(prev => ({
-        ...prev,
-        settings: { ...prev.settings, colorMode: isLightMode ? 'dark' : 'light' }
-      })),
-    onSelectAppTheme: (newTheme: AppThemeId) =>
-      setProfile(prev => ({
-        ...prev,
-        settings: { ...prev.settings, appTheme: newTheme }
-      })),
-    onToggleShortcutSetting: (key, value) =>
-      setProfile(prev => ({
-        ...prev,
-        settings: { ...prev.settings, [key]: value }
-      })),
-    onUpdateProfile: (patch) =>
-      setProfile(prev => ({
-        ...prev,
-        username: patch.username !== undefined ? patch.username : prev.username,
-        title: patch.title !== undefined ? patch.title : prev.title,
-      })),
-    onRestoreDataPayload: (payload: unknown) => {
-      const p = payload as { profile?: UserProfile; matches?: GameHistoryItem[] } | null;
-      if (p?.profile) {
-        setProfile({
-          ...p.profile,
-          settings: normalizeThemeSettings({ ...DEFAULT_SETTINGS, ...(p.profile.settings || {}) })
-        });
-      }
-      if (p?.matches) setMatches(p.matches);
-    },
-    onResetLocalData: handleResetLocalData,
-    onGlobalHelpAction: handleGlobalHelpAction,
-  };
+      activeTab,
+      onSelectTab: setActiveTab,
+      onSelectNavTab: (tab) => {
+        if (tab === 'variants') setVariantsSubTab('catalog');
+        setActiveTab(tab);
+      },
+      activeVariant,
+      activeCustomVariant,
+      variantsSubTab,
+      studioSeedConfig,
+      onSelectVariantToPlay: handleSelectVariantToPlay,
+      onPlayCustomInArena: handlePlayCustomInArena,
+      onEditVariantRules: handleEditVariantRules,
+      trainSectionRequest,
+      onOpenVisionTrainer: () => {
+        setTrainSectionRequest(prev => ({ section: 'vision', key: (prev?.key ?? 0) + 1 }));
+        setActiveTab('train');
+      },
+      selectedReviewGame,
+      recommendedPuzzleTheme,
+      onStartRecommendedPuzzles: (themeName) => {
+        setRecommendedPuzzleTheme(themeName);
+        setActiveTab('puzzles');
+      },
+      dailyPuzzleRequestKey,
+      onOpenDailyPuzzle: () => {
+        setDailyPuzzleRequestKey(k => k + 1);
+        setActiveTab('puzzles');
+      },
+      botChallengeRequest,
+      onChallengeAdaptiveBot: (posture, mode) => {
+        setActiveVariant('standard');
+        setActiveCustomVariant(null);
+        setBotChallengeRequest(prev => ({
+          botId: 'bot_adaptive_coach',
+          posture,
+          mode,
+          key: (prev?.key ?? 0) + 1
+        }));
+        setActiveTab('play');
+      },
+      profile,
+      matches,
+      currentAppTheme,
+      isLightMode,
+      displayHeaderRapidElo,
+      isOnline,
+      isMobile,
+      achievementStatuses,
+      activeToast: toastQueue[0] ?? null,
+      onDismissToast: dismissToast,
+      isSettingsOpen,
+      settingsInitialTab,
+      onOpenSettings: (tab) => {
+        setSettingsInitialTab(tab);
+        setIsSettingsOpen(true);
+      },
+      onCloseSettings: () => setIsSettingsOpen(false),
+      isShortcutsOpen,
+      onOpenShortcuts: () => setIsShortcutsOpen(true),
+      onCloseShortcuts: () => setIsShortcutsOpen(false),
+      onSaveGame: handleSaveGame,
+      onRunGameReview: handleRunGameReview,
+      onImportGame: handleImportGame,
+      onUpdatePuzzleElo: handleUpdatePuzzleElo,
+      onUpdateSettings: (newSettings) =>
+        setProfile(prev => ({ ...prev, settings: newSettings })),
+      onToggleColorMode: () =>
+        setProfile(prev => ({
+          ...prev,
+          settings: { ...prev.settings, colorMode: isLightMode ? 'dark' : 'light' }
+        })),
+      onSelectAppTheme: (newTheme: AppThemeId) =>
+        setProfile(prev => ({
+          ...prev,
+          settings: { ...prev.settings, appTheme: newTheme }
+        })),
+      onToggleShortcutSetting: (key, value) =>
+        setProfile(prev => ({
+          ...prev,
+          settings: { ...prev.settings, [key]: value }
+        })),
+      onUpdateProfile: (patch) =>
+        setProfile(prev => ({
+          ...prev,
+          username: patch.username !== undefined ? patch.username : prev.username,
+          title: patch.title !== undefined ? patch.title : prev.title,
+        })),
+      onRestoreDataPayload: (payload: unknown) => {
+        const p = payload as { profile?: UserProfile; matches?: GameHistoryItem[] } | null;
+        if (p?.profile) {
+          setProfile({
+            ...p.profile,
+            settings: normalizeThemeSettings({ ...DEFAULT_SETTINGS, ...(p.profile.settings || {}) })
+          });
+        }
+        if (p?.matches) setMatches(p.matches);
+      },
+      onResetLocalData: handleResetLocalData,
+      onGlobalHelpAction: handleGlobalHelpAction,
+    };
 
   return (
     <ThemeProvider settings={profile.settings}>

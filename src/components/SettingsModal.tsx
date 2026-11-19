@@ -52,6 +52,7 @@ interface SettingsModalProps {
   onUpdateProfile?: (patch: { username?: string; title?: string }) => void;
   onResetLocalData?: () => void;
   initialTab?: 'customization' | 'gameplay' | 'sync';
+  isMobile?: boolean;
 }
 
 async function computeVaultToken(vaultId: string, pass: string): Promise<string> {
@@ -73,6 +74,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpdateProfile,
   onResetLocalData,
   initialTab,
+  isMobile = false,
 }) => {
   const { theme: currentTheme } = useAppTheme();
   const [current, setCurrent] = useState<UserSettings>(settings);
@@ -548,109 +550,119 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* SECTION 5: BOARD LAYOUT OPTIONS */}
-              <div
-                className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl text-xs"
-                style={{
-                  backgroundColor: currentTheme.cardSecondaryHex,
-                  border: `1px solid ${currentTheme.cardBorderHex}`
-                }}
-              >
-                <div className="sm:col-span-2">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label htmlFor="board-size-slider" className="font-bold uppercase tracking-wider text-[11px]" style={{ color: currentTheme.textSecondary }}>
-                      Board Size
-                    </label>
-                    <span className="font-mono font-bold text-[11px]" style={{ color: currentTheme.accentHex }}>
-                      {current.boardSize || 100}%
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div
-                      className="flex items-center p-0.5 rounded-lg"
-                      style={{ backgroundColor: currentTheme.cardHex, border: `1px solid ${currentTheme.cardBorderHex}` }}
-                    >
-                      {[
-                        { label: 'S', value: 75 },
-                        { label: 'M', value: 100 },
-                        { label: 'L', value: 120 },
-                        { label: 'XL', value: 140 }
-                      ].map(preset => {
-                        const active = (current.boardSize || 100) === preset.value;
-                        return (
-                          <button
-                            key={preset.label}
-                            type="button"
-                            onClick={() => updateSettingImmediate('boardSize', preset.value)}
-                            className="px-2.5 py-1 rounded-md text-[11px] font-bold transition"
-                            style={
-                              active
-                                ? { backgroundColor: currentTheme.accentHex, color: currentTheme.accentTextHex }
-                                : { color: currentTheme.textSecondary }
-                            }
-                            aria-label={`Board size ${preset.label} (${preset.value}%)`}
-                          >
-                            {preset.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <input
-                      id="board-size-slider"
-                      type="range"
-                      min={60}
-                      max={140}
-                      step={5}
-                      value={current.boardSize || 100}
-                      onChange={e => updateSettingImmediate('boardSize', Number(e.target.value))}
-                      className="flex-1 min-w-[140px]"
-                      style={{ accentColor: currentTheme.accentHex }}
-                    />
-                  </div>
-                  <p className="mt-1 text-[10px]" style={{ color: currentTheme.textMutedHex }}>
-                    Larger sizes are limited by your window width.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="font-bold block mb-1.5 uppercase tracking-wider text-[11px]" style={{ color: currentTheme.textSecondary }}>
-                    Eval Bar Position
-                  </label>
-                  <select
-                    value={current.evalBarPosition}
-                    onChange={e => updateSettingImmediate('evalBarPosition', e.target.value as 'left' | 'right' | 'hidden')}
-                    className="w-full rounded-xl px-3 py-2 font-medium"
-                    style={{
-                      backgroundColor: currentTheme.cardHex,
-                      border: `1px solid ${currentTheme.cardBorderHex}`,
-                      color: currentTheme.textPrimary
-                    }}
-                  >
-                    <option value="left">Left of Board</option>
-                    <option value="right">Right of Board</option>
-                    <option value="hidden">Hidden (Focus Mode)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-bold block mb-1.5 uppercase tracking-wider text-[11px]" style={{ color: currentTheme.textSecondary }}>
-                    Coordinates Display
-                  </label>
-                  <select
-                    value={current.showCoordinates}
-                    onChange={e => updateSettingImmediate('showCoordinates', e.target.value as 'inside' | 'outside' | 'hidden')}
-                    className="w-full rounded-xl px-3 py-2 font-medium"
-                    style={{
-                      backgroundColor: currentTheme.cardHex,
-                      border: `1px solid ${currentTheme.cardBorderHex}`,
-                      color: currentTheme.textPrimary
-                    }}
-                  >
-                    <option value="inside">Inside Board Squares</option>
-                    <option value="outside">Outside Borders</option>
-                    <option value="hidden">Hidden</option>
-                  </select>
-                </div>
-              </div>
+                            {!isMobile && (
+                              <div
+                                className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl text-xs"
+                                style={{
+                                  backgroundColor: currentTheme.cardSecondaryHex,
+                                  border: `1px solid ${currentTheme.cardBorderHex}`
+                                }}
+                              >
+                                <div className="sm:col-span-2">
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <label htmlFor="board-size-slider" className="font-bold uppercase tracking-wider text-[11px]" style={{ color: currentTheme.textSecondary }}>
+                                      Board Size
+                                    </label>
+                                    <span className="font-mono font-bold text-[11px]" style={{ color: currentTheme.accentHex }}>
+                                      {current.boardSize || 100}%
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    <div
+                                      className="flex items-center p-0.5 rounded-lg"
+                                      style={{ backgroundColor: currentTheme.cardHex, border: `1px solid ${currentTheme.cardBorderHex}` }}
+                                    >
+                                      {[
+                                        { label: 'S', value: 75 },
+                                        { label: 'M', value: 100 },
+                                        { label: 'L', value: 120 },
+                                        { label: 'XL', value: 140 }
+                                      ].map(preset => {
+                                        const active = (current.boardSize || 100) === preset.value;
+                                        return (
+                                          <button
+                                            key={preset.label}
+                                            type="button"
+                                            onClick={() => updateSettingImmediate('boardSize', preset.value)}
+                                            className="px-2.5 py-1 rounded-md text-[11px] font-bold transition"
+                                            style={
+                                              active
+                                                ? { backgroundColor: currentTheme.accentHex, color: currentTheme.accentTextHex }
+                                                : { color: currentTheme.textSecondary }
+                                            }
+                                            aria-label={`Board size ${preset.label} (${preset.value}%)`}
+                                          >
+                                            {preset.label}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                    <input
+                                      id="board-size-slider"
+                                      type="range"
+                                      min={60}
+                                      max={140}
+                                      step={5}
+                                      value={current.boardSize || 100}
+                                      onChange={e => updateSettingImmediate('boardSize', Number(e.target.value))}
+                                      className="flex-1 min-w-[140px]"
+                                      style={{ accentColor: currentTheme.accentHex }}
+                                    />
+                                  </div>
+                                  <p className="mt-1 text-[10px]" style={{ color: currentTheme.textMutedHex }}>
+                                    Larger sizes are limited by your window width.
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+              
+                            <div
+                              className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl text-xs"
+                              style={{
+                                backgroundColor: currentTheme.cardSecondaryHex,
+                                border: `1px solid ${currentTheme.cardBorderHex}`
+                              }}
+                            >
+                              <div>
+                                <label className="font-bold block mb-1.5 uppercase tracking-wider text-[11px]" style={{ color: currentTheme.textSecondary }}>
+                                  Eval Bar Position
+                                </label>
+                                <select
+                                  value={current.evalBarPosition}
+                                  onChange={e => updateSettingImmediate('evalBarPosition', e.target.value as 'left' | 'right' | 'hidden')}
+                                  className="w-full rounded-xl px-3 py-2 font-medium"
+                                  style={{
+                                    backgroundColor: currentTheme.cardHex,
+                                    border: `1px solid ${currentTheme.cardBorderHex}`,
+                                    color: currentTheme.textPrimary
+                                  }}
+                                >
+                                  <option value="left">Left of Board</option>
+                                  <option value="right">Right of Board</option>
+                                  <option value="hidden">Hidden (Focus Mode)</option>
+                                </select>
+                              </div>
+              
+                              <div>
+                                <label className="font-bold block mb-1.5 uppercase tracking-wider text-[11px]" style={{ color: currentTheme.textSecondary }}>
+                                  Coordinates Display
+                                </label>
+                                <select
+                                  value={current.showCoordinates}
+                                  onChange={e => updateSettingImmediate('showCoordinates', e.target.value as 'inside' | 'outside' | 'hidden')}
+                                  className="w-full rounded-xl px-3 py-2 font-medium"
+                                  style={{
+                                    backgroundColor: currentTheme.cardHex,
+                                    border: `1px solid ${currentTheme.cardBorderHex}`,
+                                    color: currentTheme.textPrimary
+                                  }}
+                                >
+                                  <option value="inside">Inside Board Squares</option>
+                                  <option value="outside">Outside Borders</option>
+                                  <option value="hidden">Hidden</option>
+                                </select>
+                              </div>
+                            </div>
             </div>
           )}
 

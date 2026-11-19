@@ -146,6 +146,7 @@ interface PlayViewProps {
   onRunGameReview: (game: GameHistoryItem) => void;
   onUpdateSettings?: (newSettings: UserSettings) => void;
   onEditVariantRules?: (config: CustomVariantConfig) => void;
+  isMobile?: boolean;
 }
 
 export const PlayView: React.FC<PlayViewProps> = ({
@@ -157,7 +158,8 @@ export const PlayView: React.FC<PlayViewProps> = ({
   botChallengeRequest = null,
   onSaveGame,
   onRunGameReview,
-  onUpdateSettings
+  onUpdateSettings,
+  isMobile = false
 }) => {
   const { theme } = useAppTheme();
   const [selectedVariant, setSelectedVariant] = useState<VariantId>(initialVariant);
@@ -2168,13 +2170,16 @@ export const PlayView: React.FC<PlayViewProps> = ({
   }, [showThreats, isCustomMode, gameOverResult, reviewPly, opponentMode, chess, playerColor, analyzedMoves.length]);
 
   const isVsAI = opponentMode === 'ai' || opponentMode === 'coach';
-  const isLiveEvalOffInAI = opponentMode === 'ai' && settings.showLiveEval === false && !gameOverResult;
-  const liveEvalAllowed = !isLiveEvalOffInAI;
-  const evalHidden = settings.evalBarPosition === 'hidden' || isLiveEvalOffInAI;
-  // Player plates and panels track the board size setting (board + eval bar gutter), like ChessBoard does.
-  const boardPlateStyle: React.CSSProperties = {
-    maxWidth: `${getBoardMaxWidthPx(settings.boardSize) + (evalHidden ? 0 : 44)}px`
-  };
+    const isLiveEvalOffInAI = opponentMode === 'ai' && settings.showLiveEval === false && !gameOverResult;
+    const liveEvalAllowed = !isLiveEvalOffInAI;
+    const evalHidden = settings.evalBarPosition === 'hidden' || isLiveEvalOffInAI;
+    // Player plates and panels track the board size setting (board + eval bar gutter), like ChessBoard does.
+    // On mobile, the board fits to screen so no maxWidth constraint is applied.
+    const boardPlateStyle: React.CSSProperties = isMobile
+      ? {}
+      : {
+          maxWidth: `${getBoardMaxWidthPx(settings.boardSize) + (evalHidden ? 0 : 44)}px`
+        };
 
   const liveAccWhite = useMemo(
     () => (analyzedMoves.length > 0 ? calculateAccuracyFromMoves(analyzedMoves.filter(m => !m.pending), 'w') : null),
@@ -3096,93 +3101,107 @@ export const PlayView: React.FC<PlayViewProps> = ({
           </div>
 
           {/* EvalBar + ChessBoard */}
-          <div className="flex items-center justify-center gap-3 w-full">
-            {!evalHidden && settings.evalBarPosition === 'left' && (
-              <EvalBar
-                scoreCp={evalScore}
-                isFlipped={effectiveIsFlipped}
-                isEvaluating={isEvaluating}
-                engineDepth={selectedBot.depth + 12}
-                position={settings.evalBarPosition}
-              />
-            )}
-
-            {customState ? (
-              <ChessBoard
-                customGrid={customState.grid}
-                customTurn={customState.turn}
-                customLegalMoves={customLegalMoves}
-                customLastMove={customLastMove}
-                customCheckSquare={customCheckSquare}
-                customDuckPos={customState.duckPos}
-                customShieldedPos={customState.shieldedPos ?? null}
-                isPlacingDuck={isPlacingDuck}
-                isFlipped={effectiveIsFlipped}
-                theme={settings.boardTheme}
-                pieceSet={settings.pieceSet}
-                showCoordinates={settings.showCoordinates}
-                onCustomMove={handleCustomMove}
-                onCustomPlaceDuck={handleCustomPlaceDuck}
-                disabled={isEvaluating || !!gameOverResult || !!customState.winner}
-              />
-            ) : (
-              (() => {
-                let boardToRender = chess;
-                if (reviewPly !== null) {
-                  const reviewChess = new Chess(startFenForReplay);
-                  for (let i = 0; i < Math.min(reviewPly, analyzedMoves.length); i++) {
-                    try {
-                      reviewChess.move(analyzedMoves[i].san);
-                    } catch {
-                      break;
-                    }
-                  }
-                  boardToRender = reviewChess;
-                }
-                const isInspectingHistory = reviewPly !== null;
-                return (
-                  <ChessBoard
-                    chess={boardToRender}
-                    isFlipped={effectiveIsFlipped}
-                    theme={settings.boardTheme}
-                    pieceSet={settings.pieceSet}
-                    showCoordinates={settings.showCoordinates}
-                    bestMoveArrow={isInspectingHistory ? null : hintArrow}
-                    moveClassification={boardMoveClassification}
-                    threatenedSquares={isInspectingHistory || !liveEvalAllowed ? [] : threatenedSquares}
-                    duckSquare={duckSquare}
-                    isPlacingDuck={isPlacingDuck}
-                    blindfold={selectedVariant === 'blindfold'}
-                    fogVisibleSquares={fogVisibleSquares}
-                    pendingDropTargets={crazyhouseDropTargets}
-                    onDropPiece={handleCrazyhouseDrop}
-                    playerColor={opponentMode === 'local_2p' ? undefined : playerColor}
-                    premoveMode={
-                      opponentMode === 'local_2p' || isInspectingHistory || gameOverResult
-                        ? 'off'
-                        : settings.premoveMode || 'infinite'
-                    }
-                    premoves={opponentMode === 'local_2p' || isInspectingHistory ? [] : premoveQueue}
-                    onQueuePremove={handleQueuePremove}
-                    onCancelPremoves={handleCancelPremoves}
-                    onMakeMove={handleMakeMove}
-                    onPlaceDuck={handlePlaceDuck}
-                    disabled={isInspectingHistory || isEvaluating || !!gameOverResult}
-                  />
-                );
-              })()
-            )}
-
-            {!evalHidden && settings.evalBarPosition === 'right' && (
-              <EvalBar
-                scoreCp={evalScore}
-                isFlipped={effectiveIsFlipped}
-                isEvaluating={isEvaluating}
-                engineDepth={selectedBot.depth + 12}
-                position={settings.evalBarPosition}
-              />
-            )}
-          </div>
+                    <div className="flex flex-col items-center gap-2.5 w-full">
+                      {/* Horizontal eval bar on mobile - placed below top clock */}
+                      {isMobile && !evalHidden && (
+                        <EvalBar
+                          scoreCp={evalScore}
+                          isFlipped={effectiveIsFlipped}
+                          isEvaluating={isEvaluating}
+                          engineDepth={selectedBot.depth + 12}
+                          position={settings.evalBarPosition}
+                          horizontal
+                        />
+                      )}
+          
+                      <div className="flex items-center justify-center gap-3 w-full">
+                        {!isMobile && !evalHidden && settings.evalBarPosition === 'left' && (
+                          <EvalBar
+                            scoreCp={evalScore}
+                            isFlipped={effectiveIsFlipped}
+                            isEvaluating={isEvaluating}
+                            engineDepth={selectedBot.depth + 12}
+                            position={settings.evalBarPosition}
+                          />
+                        )}
+          
+                        {customState ? (
+                          <ChessBoard
+                            customGrid={customState.grid}
+                            customTurn={customState.turn}
+                            customLegalMoves={customLegalMoves}
+                            customLastMove={customLastMove}
+                            customCheckSquare={customCheckSquare}
+                            customDuckPos={customState.duckPos}
+                            customShieldedPos={customState.shieldedPos ?? null}
+                            isPlacingDuck={isPlacingDuck}
+                            isFlipped={effectiveIsFlipped}
+                            theme={settings.boardTheme}
+                            pieceSet={settings.pieceSet}
+                            showCoordinates={settings.showCoordinates}
+                            onCustomMove={handleCustomMove}
+                            onCustomPlaceDuck={handleCustomPlaceDuck}
+                            disabled={isEvaluating || !!gameOverResult || !!customState.winner}
+                          />
+                        ) : (
+                          (() => {
+                            let boardToRender = chess;
+                            if (reviewPly !== null) {
+                              const reviewChess = new Chess(startFenForReplay);
+                              for (let i = 0; i < Math.min(reviewPly, analyzedMoves.length); i++) {
+                                try {
+                                  reviewChess.move(analyzedMoves[i].san);
+                                } catch {
+                                  break;
+                                }
+                              }
+                              boardToRender = reviewChess;
+                            }
+                            const isInspectingHistory = reviewPly !== null;
+                            return (
+                              <ChessBoard
+                                chess={boardToRender}
+                                isFlipped={effectiveIsFlipped}
+                                theme={settings.boardTheme}
+                                pieceSet={settings.pieceSet}
+                                showCoordinates={settings.showCoordinates}
+                                bestMoveArrow={isInspectingHistory ? null : hintArrow}
+                                moveClassification={boardMoveClassification}
+                                threatenedSquares={isInspectingHistory || !liveEvalAllowed ? [] : threatenedSquares}
+                                duckSquare={duckSquare}
+                                isPlacingDuck={isPlacingDuck}
+                                blindfold={selectedVariant === 'blindfold'}
+                                fogVisibleSquares={fogVisibleSquares}
+                                pendingDropTargets={crazyhouseDropTargets}
+                                onDropPiece={handleCrazyhouseDrop}
+                                playerColor={opponentMode === 'local_2p' ? undefined : playerColor}
+                                premoveMode={
+                                  opponentMode === 'local_2p' || isInspectingHistory || gameOverResult
+                                    ? 'off'
+                                    : settings.premoveMode || 'infinite'
+                                }
+                                premoves={opponentMode === 'local_2p' || isInspectingHistory ? [] : premoveQueue}
+                                onQueuePremove={handleQueuePremove}
+                                onCancelPremoves={handleCancelPremoves}
+                                onMakeMove={handleMakeMove}
+                                onPlaceDuck={handlePlaceDuck}
+                                disabled={isInspectingHistory || isEvaluating || !!gameOverResult}
+                              />
+                            );
+                          })()
+                        )}
+          
+                        {!isMobile && !evalHidden && settings.evalBarPosition === 'right' && (
+                          <EvalBar
+                            scoreCp={evalScore}
+                            isFlipped={effectiveIsFlipped}
+                            isEvaluating={isEvaluating}
+                            engineDepth={selectedBot.depth + 12}
+                            position={settings.evalBarPosition}
+                          />
+                        )}
+                      </div>
+                    </div>
 
           {/* Bottom Plate */}
           <div
