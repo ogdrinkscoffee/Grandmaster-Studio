@@ -138,14 +138,6 @@ export const MobileView: React.FC<AppViewProps> = ({
 
           {/* Search, Telemetry & Controls */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            <GlobalSearch
-              matches={matches}
-              onSelectGame={onRunGameReview}
-              onSelectVariant={onSelectVariantToPlay}
-              onSelectCustomVariant={onPlayCustomInArena}
-              onExecuteHelpAction={onGlobalHelpAction}
-            />
-
             <PWAInstallButton variant="compact" />
 
             {profile.settings.batterySaver && (
@@ -169,6 +161,15 @@ export const MobileView: React.FC<AppViewProps> = ({
                 <span>Offline</span>
               </span>
             )}
+
+            <GlobalSearch
+              iconOnly
+              matches={matches}
+              onSelectGame={onRunGameReview}
+              onSelectVariant={onSelectVariantToPlay}
+              onSelectCustomVariant={onPlayCustomInArena}
+              onExecuteHelpAction={onGlobalHelpAction}
+            />
 
             {/* Dark / Light Mode Toggle */}
             <button

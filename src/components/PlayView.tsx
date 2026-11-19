@@ -2601,7 +2601,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
               {showAssistsMenu && (
                 <div
-                  className="absolute right-0 mt-2 w-72 rounded-xl border shadow-2xl p-3 z-40 flex flex-col gap-3 text-xs"
+                  className="fixed left-3 right-3 mt-2 w-auto md:absolute md:left-auto md:right-0 md:w-72 rounded-xl border shadow-2xl p-3 z-40 flex flex-col gap-3 text-xs"
                   style={{
                     backgroundColor: theme.cardHex,
                     borderColor: theme.cardBorderHex,

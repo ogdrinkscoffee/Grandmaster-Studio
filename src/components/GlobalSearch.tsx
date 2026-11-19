@@ -26,6 +26,7 @@ interface GlobalSearchProps {
   onSelectVariant: (variantId: VariantId) => void;
   onSelectCustomVariant: (config: CustomVariantConfig) => void;
   onExecuteHelpAction: (target: SearchActionTarget) => void;
+  iconOnly?: boolean;
 }
 
 const CATEGORIES: { id: SearchCategory; label: string }[] = [
@@ -51,7 +52,8 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
   onSelectGame,
   onSelectVariant,
   onSelectCustomVariant,
-  onExecuteHelpAction
+  onExecuteHelpAction,
+  iconOnly = false
 }) => {
   const { theme } = useAppTheme();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -225,54 +227,56 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
   return (
     <div ref={containerRef} className="relative flex items-center shrink-0">
       {/* Desktop / Tablet inline header search input */}
-      <div
-        className="hidden sm:flex items-center gap-1.5 h-8 w-44 md:w-36 lg:w-44 xl:w-56 px-2.5 rounded-lg border transition-colors"
-        style={{
-          backgroundColor: theme.cardSecondaryHex,
-          borderColor: isOpen ? theme.accentHex : theme.cardBorderHex
-        }}
-      >
-        <Search className="w-3.5 h-3.5 shrink-0" style={{ color: isOpen ? theme.accentHex : theme.textMutedHex }} />
-        <input
-          ref={desktopInputRef}
-          type="text"
-          value={query}
-          aria-label="Global search"
-          placeholder="Search games, variants, help..."
-          onFocus={() => setIsOpen(true)}
-          onChange={e => {
-            setQuery(e.target.value);
-            setSelectedHelp(null);
-            if (!isOpen) setIsOpen(true);
+      {!iconOnly && (
+        <div
+          className="hidden sm:flex items-center gap-1.5 h-8 w-44 md:w-36 lg:w-44 xl:w-56 px-2.5 rounded-lg border transition-colors"
+          style={{
+            backgroundColor: theme.cardSecondaryHex,
+            borderColor: isOpen ? theme.accentHex : theme.cardBorderHex
           }}
-          onKeyDown={handleInputKeyDown}
-          className="w-full min-w-0 bg-transparent text-xs focus:outline-none"
-          style={{ color: theme.textPrimary }}
-        />
-        {query ? (
-          <button
-            type="button"
-            aria-label="Clear search"
-            onClick={() => {
-              setQuery('');
+        >
+          <Search className="w-3.5 h-3.5 shrink-0" style={{ color: isOpen ? theme.accentHex : theme.textMutedHex }} />
+          <input
+            ref={desktopInputRef}
+            type="text"
+            value={query}
+            aria-label="Global search"
+            placeholder="Search games, variants, help..."
+            onFocus={() => setIsOpen(true)}
+            onChange={e => {
+              setQuery(e.target.value);
               setSelectedHelp(null);
-              desktopInputRef.current?.focus();
+              if (!isOpen) setIsOpen(true);
             }}
-            className="p-0.5 rounded hover:opacity-75 transition shrink-0"
-            style={{ color: theme.textMutedHex }}
-          >
-            <X className="w-3 h-3" />
-          </button>
-        ) : (
-          <kbd
-            aria-hidden="true"
-            className="hidden lg:inline-block text-[10px] font-mono shrink-0"
-            style={{ color: theme.textMutedHex }}
-          >
-            /
-          </kbd>
-        )}
-      </div>
+            onKeyDown={handleInputKeyDown}
+            className="w-full min-w-0 bg-transparent text-xs focus:outline-none"
+            style={{ color: theme.textPrimary }}
+          />
+          {query ? (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => {
+                setQuery('');
+                setSelectedHelp(null);
+                desktopInputRef.current?.focus();
+              }}
+              className="p-0.5 rounded hover:opacity-75 transition shrink-0"
+              style={{ color: theme.textMutedHex }}
+            >
+              <X className="w-3 h-3" />
+            </button>
+          ) : (
+            <kbd
+              aria-hidden="true"
+              className="hidden lg:inline-block text-[10px] font-mono shrink-0"
+              style={{ color: theme.textMutedHex }}
+            >
+              /
+            </kbd>
+          )}
+        </div>
+      )}
 
       {/* Mobile compact icon button */}
       <button
@@ -286,7 +290,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
             openAndFocus();
           }
         }}
-        className="sm:hidden p-2 rounded-lg border transition hover:opacity-80"
+        className={`${iconOnly ? '' : 'sm:hidden '}p-2 rounded-lg border transition hover:opacity-80`}
         style={{
           backgroundColor: theme.cardSecondaryHex,
           borderColor: isOpen ? theme.accentHex : theme.cardBorderHex,
@@ -310,7 +314,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
         >
           {/* Mobile search input inside popover */}
           <div
-            className="sm:hidden flex items-center gap-2 px-3 py-2.5 border-b"
+            className={`${iconOnly ? '' : 'sm:hidden '}flex items-center gap-2 px-3 py-2.5 border-b`}
             style={{ borderColor: theme.cardBorderHex, backgroundColor: theme.cardSecondaryHex }}
           >
             <Search className="w-4 h-4 shrink-0" style={{ color: theme.accentHex }} />
