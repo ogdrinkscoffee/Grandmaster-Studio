@@ -9,7 +9,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig(() => {
   return {
     plugins: [
-      react({ babel: { plugins: [liveUiEditorBabelPlugin] } }),
+      react({ babel: { plugins: [liveUiEditorBabelPlugin] } } as Parameters<typeof react>[0]),
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
