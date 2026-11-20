@@ -93,7 +93,8 @@ import {
   ShieldAlert,
   SlidersHorizontal,
   Bot,
-  GraduationCap
+  GraduationCap,
+  LogOut
 } from 'lucide-react';
 
 interface TimePreset {
@@ -147,6 +148,10 @@ interface PlayViewProps {
   onUpdateSettings?: (newSettings: UserSettings) => void;
   onEditVariantRules?: (config: CustomVariantConfig) => void;
   isMobile?: boolean;
+  onGameStart?: () => void;
+  onGameEnd?: () => void;
+  onLeaveGame?: () => void;
+  distractionFree?: boolean;
 }
 
 export const PlayView: React.FC<PlayViewProps> = ({
@@ -159,7 +164,11 @@ export const PlayView: React.FC<PlayViewProps> = ({
   onSaveGame,
   onRunGameReview,
   onUpdateSettings,
-  isMobile = false
+  isMobile = false,
+  onGameStart,
+  onGameEnd,
+  onLeaveGame,
+  distractionFree = false
 }) => {
   const { theme } = useAppTheme();
   const [selectedVariant, setSelectedVariant] = useState<VariantId>(initialVariant);
@@ -663,6 +672,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
         triggerAIMove(freshChess);
       }
     }
+    onGameStart?.();
   };
 
   const handleSelectOpeningStarter = (newOpeningId: string) => {
@@ -1335,9 +1345,10 @@ export const PlayView: React.FC<PlayViewProps> = ({
     setClockRunning(false);
     const overObj = { result, reason };
     gameOverRef.current = overObj;
-    setGameOverResult(overObj);
-
-    const activePlayerColor = playerColorRef.current;
+        setGameOverResult(overObj);
+        onGameEnd?.();
+    
+        const activePlayerColor = playerColorRef.current;
     const activeMode = opponentModeRef.current;
     const activeBot = selectedBotRef.current;
     const activeVariant = selectedVariantRef.current;
@@ -2272,14 +2283,16 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
   return (
     <div className="flex flex-col gap-5 max-w-7xl mx-auto px-3 sm:px-6 py-4" style={{ color: theme.textPrimary }}>
-      {/* Precision Match Setup Bar */}
-      <div
-        className="flex flex-col gap-3 rounded-xl px-4 py-3 border"
-        style={{
-          backgroundColor: theme.cardHex,
-          borderColor: theme.cardBorderHex
-        }}
-      >
+      {!distractionFree && (
+        <>
+          {/* Precision Match Setup Bar */}
+          <div
+            className="flex flex-col gap-3 rounded-xl px-4 py-3 border"
+            style={{
+              backgroundColor: theme.cardHex,
+              borderColor: theme.cardBorderHex
+            }}
+          >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           {/* Character / Mode Summary */}
           <div className="flex items-center gap-3 min-w-0 sm:flex-1">
@@ -2891,16 +2904,18 @@ export const PlayView: React.FC<PlayViewProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Custom AI Elo Calibration Bar (100 to 3600 Max Strength) */}
-      {isVsAI && showCustomElo && (
-        <div
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl px-4 py-3 border text-xs"
-          style={{
-            backgroundColor: theme.cardHex,
-            borderColor: theme.accentHex
-          }}
-        >
+              </>
+            )}
+      
+            {/* Custom AI Elo Calibration Bar (100 to 3600 Max Strength) */}
+      {isVsAI && showCustomElo && !distractionFree && (
+              <div
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl px-4 py-3 border text-xs"
+                style={{
+                  backgroundColor: theme.cardHex,
+                  borderColor: theme.accentHex
+                }}
+              >
           <div className="flex flex-col gap-0.5">
             <span className="font-bold" style={{ color: theme.textPrimary }}>
               Custom AI Strength (100 – {MAX_AI_ELO} Max Local Engine)
@@ -2973,17 +2988,18 @@ export const PlayView: React.FC<PlayViewProps> = ({
             </div>
           </div>
         </div>
-      )}
-
-      {/* Custom Time Inline Controls */}
-      {showCustomTime && (
-        <div
-          className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-2.5 border text-xs"
-          style={{
-            backgroundColor: theme.cardHex,
-            borderColor: theme.accentHex
-          }}
-        >
+              )}
+        
+              {!distractionFree && (
+                {/* Custom Time Inline Controls */}
+      {showCustomTime && !distractionFree && (
+              <div
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-2.5 border text-xs"
+                style={{
+                  backgroundColor: theme.cardHex,
+                  borderColor: theme.accentHex
+                }}
+              >
           <span className="font-semibold" style={{ color: theme.textPrimary }}>
             Custom Time Control:
           </span>
@@ -3033,9 +3049,10 @@ export const PlayView: React.FC<PlayViewProps> = ({
             </button>
           </div>
         </div>
-      )}
-
-      {/* Main Board Arena */}
+              )}
+        
+              {!distractionFree && (
+                {/* Main Board Arena */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Board Column */}
         <div className="lg:col-span-8 flex flex-col items-center gap-2.5">
@@ -3464,12 +3481,12 @@ export const PlayView: React.FC<PlayViewProps> = ({
         <div className="lg:col-span-4 flex flex-col gap-4">
           {/* Action Strip */}
           <div
-            className="rounded-xl p-2 border grid grid-cols-6 gap-1"
-            style={{
-              backgroundColor: theme.cardHex,
-              borderColor: theme.cardBorderHex
-            }}
-          >
+                      className={`rounded-xl p-2 border grid ${distractionFree ? 'grid-cols-7' : 'grid-cols-6'} gap-1`}
+                      style={{
+                        backgroundColor: theme.cardHex,
+                        borderColor: theme.cardBorderHex
+                      }}
+                    >
             <button
               type="button"
               onClick={handleGetHint}
@@ -3534,21 +3551,35 @@ export const PlayView: React.FC<PlayViewProps> = ({
             </button>
 
             <button
-              type="button"
-              onClick={() =>
-                finishGame(
-                  (opponentMode === 'local_2p' ? activeTurn : playerColor) === 'w' ? '0-1' : '1-0',
-                  'resignation'
-                )
-              }
-              disabled={!!gameOverResult}
-              className="flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition hover:opacity-80 text-rose-500 disabled:opacity-40 whitespace-nowrap"
-              title="Resign Match"
-            >
-              <Flag className="w-4 h-4 text-rose-500" />
-              <span>Resign</span>
-            </button>
-          </div>
+                          type="button"
+                          onClick={() =>
+                            finishGame(
+                              (opponentMode === 'local_2p' ? activeTurn : playerColor) === 'w' ? '0-1' : '1-0',
+                              'resignation'
+                            )
+                          }
+                          disabled={!!gameOverResult}
+                          className="flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition hover:opacity-80 text-rose-500 disabled:opacity-40 whitespace-nowrap"
+                          title="Resign Match"
+                        >
+                          <Flag className="w-4 h-4 text-rose-500" />
+                          <span>Resign</span>
+                        </button>
+            
+                        {onLeaveGame && (
+                          <button
+                            type="button"
+                            onClick={onLeaveGame}
+                            disabled={!!gameOverResult}
+                            className="flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition hover:opacity-80 disabled:opacity-40 whitespace-nowrap"
+                            style={{ color: theme.accentHex }}
+                            title="Leave Game"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            <span>Leave</span>
+                          </button>
+                        )}
+                      </div>
 
           {/* Interactive Coach Game Panel (Teach While You Play) */}
           {opponentMode === 'coach' && !isCustomMode && (
