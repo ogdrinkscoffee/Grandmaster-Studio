@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React from 'react';
 import {
   Swords,
   Compass,
@@ -11,8 +11,7 @@ import {
   Sun,
   Moon,
   GraduationCap,
-  Keyboard,
-  LogOut
+  Keyboard
 } from 'lucide-react';
 import { AppTab, AppViewProps } from './AppViewProps';
 import { PlayView } from './PlayView';
@@ -87,152 +86,6 @@ export const MobileView: React.FC<AppViewProps> = ({
   onResetLocalData,
   onGlobalHelpAction,
 }) => {
-  const [gameActive, setGameActive] = useState(false);
-  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
-  const [pendingTab, setPendingTab] = useState<AppTab | null>(null);
-
-  const handleGameStart = useCallback(() => {
-    setGameActive(true);
-    // Request fullscreen
-    document.documentElement.requestFullscreen?.().catch(() => {});
-  }, []);
-
-  const handleGameEnd = useCallback(() => {
-    setGameActive(false);
-    // Exit fullscreen
-    document.exitFullscreen?.().catch(() => {});
-  }, []);
-
-  const handleLeaveGame = useCallback(() => {
-    setShowLeaveConfirm(true);
-  }, []);
-
-  // beforeunload handler for page refresh/close
-  useEffect(() => {
-    if (!gameActive) return;
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [gameActive]);
-
-  // Intercept tab changes when game is active
-  const handleAttemptNav = (tab: AppTab, navHandler: (tab: AppTab) => void) => {
-    if (gameActive && tab !== 'play') {
-      setPendingTab(tab);
-      setShowLeaveConfirm(true);
-      return;
-    }
-    navHandler(tab);
-  };
-
-  const confirmLeave = () => {
-    setShowLeaveConfirm(false);
-    if (pendingTab) {
-      const tab = pendingTab;
-      setPendingTab(null);
-      onSelectTab(tab);
-    }
-  };
-
-  const cancelLeave = () => {
-    setShowLeaveConfirm(false);
-    setPendingTab(null);
-  };
-
-  // When game is active, render full-screen distraction-free mode
-  if (gameActive) {
-    return (
-      <div
-        className="fixed inset-0 h-[100dvh] overflow-hidden overscroll-none"
-        style={{
-          backgroundColor: 'var(--bg-color)',
-          color: 'var(--gm-text)'
-        }}
-      >
-        <PlayView
-          initialVariant={activeVariant}
-          customVariantConfig={activeCustomVariant}
-          settings={profile.settings}
-          playerRapidElo={profile.ratings.rapid}
-          recentGames={matches}
-          botChallengeRequest={botChallengeRequest}
-          onSaveGame={onSaveGame}
-          onRunGameReview={onRunGameReview}
-          onUpdateSettings={onUpdateSettings}
-          onEditVariantRules={onEditVariantRules}
-          isMobile={isMobile}
-          onGameStart={handleGameStart}
-          onGameEnd={handleGameEnd}
-          onLeaveGame={handleLeaveGame}
-          distractionFree={true}
-        />
-
-        {/* Leave Confirmation Modal */}
-        {showLeaveConfirm && (
-          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-            <div
-              className="border rounded-2xl max-w-md w-full p-6 shadow-2xl text-center flex flex-col items-center gap-4 animate-modal-reveal"
-              style={{
-                backgroundColor: currentAppTheme.cardHex,
-                borderColor: currentAppTheme.cardBorderHex,
-                color: currentAppTheme.textPrimary
-              }}
-            >
-              <div
-                className="w-14 h-14 rounded-xl border flex items-center justify-center"
-                style={{
-                  backgroundColor: `${currentAppTheme.accentHex}18`,
-                  borderColor: `${currentAppTheme.accentHex}40`,
-                  color: currentAppTheme.accentHex
-                }}
-              >
-                <LogOut className="w-7 h-7" />
-              </div>
-              <div>
-                <h3 className="font-display text-2xl font-extrabold" style={{ color: currentAppTheme.textPrimary }}>
-                  Leave Game?
-                </h3>
-                <p className="text-xs mt-1" style={{ color: currentAppTheme.textSecondary }}>
-                  Your current game will be lost if you leave now.
-                </p>
-              </div>
-              <div className="w-full flex flex-col gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={confirmLeave}
-                  className="w-full py-2.5 rounded-xl font-bold text-xs tracking-wide transition flex items-center justify-center gap-2 hover:opacity-90"
-                  style={{
-                    backgroundColor: currentAppTheme.accentHex,
-                    color: currentAppTheme.accentTextHex
-                  }}
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Leave Game</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={cancelLeave}
-                  className="w-full py-2.5 rounded-xl border font-semibold text-xs transition hover:opacity-80"
-                  style={{
-                    backgroundColor: currentAppTheme.cardSecondaryHex,
-                    borderColor: currentAppTheme.cardBorderHex,
-                    color: currentAppTheme.textPrimary
-                  }}
-                >
-                  Continue Playing
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Normal lobby/nav UI when no game is active
   return (
     <div
       className="relative isolate min-h-screen flex flex-col"
@@ -402,23 +255,20 @@ export const MobileView: React.FC<AppViewProps> = ({
       {/* Main Workspace */}
       <main className="flex-1 pb-20">
         {activeTab === 'play' && (
-          <PlayView
-            initialVariant={activeVariant}
-            customVariantConfig={activeCustomVariant}
-            settings={profile.settings}
-            playerRapidElo={profile.ratings.rapid}
-            recentGames={matches}
-            botChallengeRequest={botChallengeRequest}
-            onSaveGame={onSaveGame}
-            onRunGameReview={onRunGameReview}
-            onUpdateSettings={onUpdateSettings}
-            onEditVariantRules={onEditVariantRules}
-            isMobile={isMobile}
-            onGameStart={handleGameStart}
-            onGameEnd={handleGameEnd}
-            onLeaveGame={handleLeaveGame}
-          />
-        )}
+                  <PlayView
+                    initialVariant={activeVariant}
+                    customVariantConfig={activeCustomVariant}
+                    settings={profile.settings}
+                    playerRapidElo={profile.ratings.rapid}
+                    recentGames={matches}
+                    botChallengeRequest={botChallengeRequest}
+                    onSaveGame={onSaveGame}
+                    onRunGameReview={onRunGameReview}
+                    onUpdateSettings={onUpdateSettings}
+                    onEditVariantRules={onEditVariantRules}
+                    isMobile={isMobile}
+                  />
+                )}
 
         {activeTab === 'variants' && (
           <VariantsView
@@ -492,7 +342,7 @@ export const MobileView: React.FC<AppViewProps> = ({
             <button
               key={item.id}
               type="button"
-              onClick={() => handleAttemptNav(item.id, onSelectNavTab)}
+              onClick={() => onSelectNavTab(item.id)}
               className="flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-bold transition"
               style={{
                 color: isActive ? currentAppTheme.accentHex : currentAppTheme.textSecondary
@@ -516,18 +366,18 @@ export const MobileView: React.FC<AppViewProps> = ({
 
       {/* Settings & Customization Modal */}
       <SettingsModal
-        isOpen={isSettingsOpen}
-        initialTab={settingsInitialTab}
-        onClose={onCloseSettings}
-        settings={profile.settings}
-        onSaveSettings={onUpdateSettings}
-        fullDataPayload={{ profile, matches }}
-        onRestoreDataPayload={onRestoreDataPayload}
-        profile={{ username: profile.username, title: profile.title }}
-        onUpdateProfile={onUpdateProfile}
-        onResetLocalData={onResetLocalData}
-        isMobile={isMobile}
-      />
+              isOpen={isSettingsOpen}
+              initialTab={settingsInitialTab}
+              onClose={onCloseSettings}
+              settings={profile.settings}
+              onSaveSettings={onUpdateSettings}
+              fullDataPayload={{ profile, matches }}
+              onRestoreDataPayload={onRestoreDataPayload}
+              profile={{ username: profile.username, title: profile.title }}
+              onUpdateProfile={onUpdateProfile}
+              onResetLocalData={onResetLocalData}
+              isMobile={isMobile}
+            />
 
       {/* Keyboard Shortcuts Overlay */}
       <KeyboardShortcutsModal

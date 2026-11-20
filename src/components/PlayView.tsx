@@ -93,8 +93,7 @@ import {
   ShieldAlert,
   SlidersHorizontal,
   Bot,
-  GraduationCap,
-  LogOut
+  GraduationCap
 } from 'lucide-react';
 
 interface TimePreset {
@@ -148,10 +147,6 @@ interface PlayViewProps {
   onUpdateSettings?: (newSettings: UserSettings) => void;
   onEditVariantRules?: (config: CustomVariantConfig) => void;
   isMobile?: boolean;
-  onGameStart?: () => void;
-  onGameEnd?: () => void;
-  onLeaveGame?: () => void;
-  distractionFree?: boolean;
 }
 
 export const PlayView: React.FC<PlayViewProps> = ({
@@ -164,11 +159,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
   onSaveGame,
   onRunGameReview,
   onUpdateSettings,
-  isMobile = false,
-  onGameStart,
-  onGameEnd,
-  onLeaveGame,
-  distractionFree = false
+  isMobile = false
 }) => {
   const { theme } = useAppTheme();
   const [selectedVariant, setSelectedVariant] = useState<VariantId>(initialVariant);
@@ -672,7 +663,6 @@ export const PlayView: React.FC<PlayViewProps> = ({
         triggerAIMove(freshChess);
       }
     }
-    onGameStart?.();
   };
 
   const handleSelectOpeningStarter = (newOpeningId: string) => {
@@ -1345,10 +1335,9 @@ export const PlayView: React.FC<PlayViewProps> = ({
     setClockRunning(false);
     const overObj = { result, reason };
     gameOverRef.current = overObj;
-        setGameOverResult(overObj);
-        onGameEnd?.();
-    
-        const activePlayerColor = playerColorRef.current;
+    setGameOverResult(overObj);
+
+    const activePlayerColor = playerColorRef.current;
     const activeMode = opponentModeRef.current;
     const activeBot = selectedBotRef.current;
     const activeVariant = selectedVariantRef.current;
@@ -2283,16 +2272,14 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
   return (
     <div className="flex flex-col gap-5 max-w-7xl mx-auto px-3 sm:px-6 py-4" style={{ color: theme.textPrimary }}>
-      {!distractionFree && (
-        <>
-          {/* Precision Match Setup Bar */}
-          <div
-            className="flex flex-col gap-3 rounded-xl px-4 py-3 border"
-            style={{
-              backgroundColor: theme.cardHex,
-              borderColor: theme.cardBorderHex
-            }}
-          >
+      {/* Precision Match Setup Bar */}
+      <div
+        className="flex flex-col gap-3 rounded-xl px-4 py-3 border"
+        style={{
+          backgroundColor: theme.cardHex,
+          borderColor: theme.cardBorderHex
+        }}
+      >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           {/* Character / Mode Summary */}
           <div className="flex items-center gap-3 min-w-0 sm:flex-1">
@@ -2904,18 +2891,16 @@ export const PlayView: React.FC<PlayViewProps> = ({
           </div>
         </div>
       </div>
-              </>
-            )}
-      
-            {/* Custom AI Elo Calibration Bar (100 to 3600 Max Strength) */}
-      {isVsAI && showCustomElo && !distractionFree && (
-              <div
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl px-4 py-3 border text-xs"
-                style={{
-                  backgroundColor: theme.cardHex,
-                  borderColor: theme.accentHex
-                }}
-              >
+
+      {/* Custom AI Elo Calibration Bar (100 to 3600 Max Strength) */}
+      {isVsAI && showCustomElo && (
+        <div
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl px-4 py-3 border text-xs"
+          style={{
+            backgroundColor: theme.cardHex,
+            borderColor: theme.accentHex
+          }}
+        >
           <div className="flex flex-col gap-0.5">
             <span className="font-bold" style={{ color: theme.textPrimary }}>
               Custom AI Strength (100 – {MAX_AI_ELO} Max Local Engine)
@@ -2988,72 +2973,70 @@ export const PlayView: React.FC<PlayViewProps> = ({
             </div>
           </div>
         </div>
-              )}
-                     
-                            {!distractionFree && (
-                              <>
-                                {/* Custom Time Inline Controls */}
-                                {showCustomTime && (
-                                  <div
-                                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-2.5 border text-xs"
-                                    style={{
-                                      backgroundColor: theme.cardHex,
-                                      borderColor: theme.accentHex
-                                    }}
-                                  >
-                                    <span className="font-semibold" style={{ color: theme.textPrimary }}>
-                                      Custom Time Control:
-                                    </span>
-                                    <div className="flex items-center gap-3">
-                                      <label className="flex items-center gap-1.5">
-                                        <span style={{ color: theme.textSecondary }}>Minutes</span>
-                                        <input
-                                          type="number"
-                                          min={1}
-                                          max={180}
-                                          value={customMinutesInput}
-                                          onChange={e => setCustomMinutesInput(Number(e.target.value))}
-                                          className="w-16 px-2 py-1 rounded border font-mono text-center focus:outline-none"
-                                          style={{
-                                            backgroundColor: theme.cardSecondaryHex,
-                                            borderColor: theme.cardBorderHex,
-                                            color: theme.textPrimary
-                                          }}
-                                        />
-                                      </label>
-                                      <label className="flex items-center gap-1.5">
-                                        <span style={{ color: theme.textSecondary }}>Increment (s)</span>
-                                        <input
-                                          type="number"
-                                          min={0}
-                                          max={60}
-                                          value={customIncInput}
-                                          onChange={e => setCustomIncInput(Number(e.target.value))}
-                                          className="w-16 px-2 py-1 rounded border font-mono text-center focus:outline-none"
-                                          style={{
-                                            backgroundColor: theme.cardSecondaryHex,
-                                            borderColor: theme.cardBorderHex,
-                                            color: theme.textPrimary
-                                          }}
-                                        />
-                                      </label>
-                                      <button
-                                        type="button"
-                                        onClick={applyCustomTime}
-                                        className="px-3 py-1 rounded-lg font-bold"
-                                        style={{
-                                          backgroundColor: theme.accentHex,
-                                          color: theme.accentTextHex
-                                        }}
-                                      >
-                                        Apply {customMinutesInput}+{customIncInput}
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-              
-                                {/* Main Board Arena */}
-                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      )}
+
+      {/* Custom Time Inline Controls */}
+      {showCustomTime && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-2.5 border text-xs"
+          style={{
+            backgroundColor: theme.cardHex,
+            borderColor: theme.accentHex
+          }}
+        >
+          <span className="font-semibold" style={{ color: theme.textPrimary }}>
+            Custom Time Control:
+          </span>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5">
+              <span style={{ color: theme.textSecondary }}>Minutes</span>
+              <input
+                type="number"
+                min={1}
+                max={180}
+                value={customMinutesInput}
+                onChange={e => setCustomMinutesInput(Number(e.target.value))}
+                className="w-16 px-2 py-1 rounded border font-mono text-center focus:outline-none"
+                style={{
+                  backgroundColor: theme.cardSecondaryHex,
+                  borderColor: theme.cardBorderHex,
+                  color: theme.textPrimary
+                }}
+              />
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span style={{ color: theme.textSecondary }}>Increment (s)</span>
+              <input
+                type="number"
+                min={0}
+                max={60}
+                value={customIncInput}
+                onChange={e => setCustomIncInput(Number(e.target.value))}
+                className="w-16 px-2 py-1 rounded border font-mono text-center focus:outline-none"
+                style={{
+                  backgroundColor: theme.cardSecondaryHex,
+                  borderColor: theme.cardBorderHex,
+                  color: theme.textPrimary
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={applyCustomTime}
+              className="px-3 py-1 rounded-lg font-bold"
+              style={{
+                backgroundColor: theme.accentHex,
+                color: theme.accentTextHex
+              }}
+            >
+              Apply {customMinutesInput}+{customIncInput}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Board Arena */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Board Column */}
         <div className="lg:col-span-8 flex flex-col items-center gap-2.5">
           {/* Top Plate */}
@@ -3481,12 +3464,12 @@ export const PlayView: React.FC<PlayViewProps> = ({
         <div className="lg:col-span-4 flex flex-col gap-4">
           {/* Action Strip */}
           <div
-                      className={`rounded-xl p-2 border grid ${distractionFree ? 'grid-cols-7' : 'grid-cols-6'} gap-1`}
-                      style={{
-                        backgroundColor: theme.cardHex,
-                        borderColor: theme.cardBorderHex
-                      }}
-                    >
+            className="rounded-xl p-2 border grid grid-cols-6 gap-1"
+            style={{
+              backgroundColor: theme.cardHex,
+              borderColor: theme.cardBorderHex
+            }}
+          >
             <button
               type="button"
               onClick={handleGetHint}
@@ -3551,35 +3534,21 @@ export const PlayView: React.FC<PlayViewProps> = ({
             </button>
 
             <button
-                          type="button"
-                          onClick={() =>
-                            finishGame(
-                              (opponentMode === 'local_2p' ? activeTurn : playerColor) === 'w' ? '0-1' : '1-0',
-                              'resignation'
-                            )
-                          }
-                          disabled={!!gameOverResult}
-                          className="flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition hover:opacity-80 text-rose-500 disabled:opacity-40 whitespace-nowrap"
-                          title="Resign Match"
-                        >
-                          <Flag className="w-4 h-4 text-rose-500" />
-                          <span>Resign</span>
-                        </button>
-            
-                        {onLeaveGame && (
-                          <button
-                            type="button"
-                            onClick={onLeaveGame}
-                            disabled={!!gameOverResult}
-                            className="flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition hover:opacity-80 disabled:opacity-40 whitespace-nowrap"
-                            style={{ color: theme.accentHex }}
-                            title="Leave Game"
-                          >
-                            <LogOut className="w-4 h-4" />
-                            <span>Leave</span>
-                          </button>
-                        )}
-                      </div>
+              type="button"
+              onClick={() =>
+                finishGame(
+                  (opponentMode === 'local_2p' ? activeTurn : playerColor) === 'w' ? '0-1' : '1-0',
+                  'resignation'
+                )
+              }
+              disabled={!!gameOverResult}
+              className="flex flex-col items-center gap-1 py-2 rounded-lg text-[11px] font-semibold transition hover:opacity-80 text-rose-500 disabled:opacity-40 whitespace-nowrap"
+              title="Resign Match"
+            >
+              <Flag className="w-4 h-4 text-rose-500" />
+              <span>Resign</span>
+            </button>
+          </div>
 
           {/* Interactive Coach Game Panel (Teach While You Play) */}
           {opponentMode === 'coach' && !isCustomMode && (
@@ -4285,9 +4254,6 @@ export const PlayView: React.FC<PlayViewProps> = ({
         }}
         onClose={() => setShowCharacterModal(false)}
       />
-            
-            </>
-          )}
     </div>
-
-      {/* End of Match Overlay */}
+  );
+};
