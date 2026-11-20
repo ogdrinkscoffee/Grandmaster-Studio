@@ -4285,9 +4285,9 @@ export const PlayView: React.FC<PlayViewProps> = ({
         }}
         onClose={() => setShowCharacterModal(false)}
       />
-                </div>
-              )}
+            
             </>
           )}
+    </div>
 
       {/* End of Match Overlay */}
