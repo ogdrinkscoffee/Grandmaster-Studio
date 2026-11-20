@@ -2989,71 +2989,71 @@ export const PlayView: React.FC<PlayViewProps> = ({
           </div>
         </div>
               )}
-        
-              {!distractionFree && (
-                {/* Custom Time Inline Controls */}
-      {showCustomTime && !distractionFree && (
-              <div
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-2.5 border text-xs"
-                style={{
-                  backgroundColor: theme.cardHex,
-                  borderColor: theme.accentHex
-                }}
-              >
-          <span className="font-semibold" style={{ color: theme.textPrimary }}>
-            Custom Time Control:
-          </span>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1.5">
-              <span style={{ color: theme.textSecondary }}>Minutes</span>
-              <input
-                type="number"
-                min={1}
-                max={180}
-                value={customMinutesInput}
-                onChange={e => setCustomMinutesInput(Number(e.target.value))}
-                className="w-16 px-2 py-1 rounded border font-mono text-center focus:outline-none"
-                style={{
-                  backgroundColor: theme.cardSecondaryHex,
-                  borderColor: theme.cardBorderHex,
-                  color: theme.textPrimary
-                }}
-              />
-            </label>
-            <label className="flex items-center gap-1.5">
-              <span style={{ color: theme.textSecondary }}>Increment (s)</span>
-              <input
-                type="number"
-                min={0}
-                max={60}
-                value={customIncInput}
-                onChange={e => setCustomIncInput(Number(e.target.value))}
-                className="w-16 px-2 py-1 rounded border font-mono text-center focus:outline-none"
-                style={{
-                  backgroundColor: theme.cardSecondaryHex,
-                  borderColor: theme.cardBorderHex,
-                  color: theme.textPrimary
-                }}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={applyCustomTime}
-              className="px-3 py-1 rounded-lg font-bold"
-              style={{
-                backgroundColor: theme.accentHex,
-                color: theme.accentTextHex
-              }}
-            >
-              Apply {customMinutesInput}+{customIncInput}
-            </button>
-          </div>
-        </div>
-              )}
-        
-              {!distractionFree && (
-                {/* Main Board Arena */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                     
+                            {!distractionFree && (
+                              <>
+                                {/* Custom Time Inline Controls */}
+                                {showCustomTime && (
+                                  <div
+                                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-2.5 border text-xs"
+                                    style={{
+                                      backgroundColor: theme.cardHex,
+                                      borderColor: theme.accentHex
+                                    }}
+                                  >
+                                    <span className="font-semibold" style={{ color: theme.textPrimary }}>
+                                      Custom Time Control:
+                                    </span>
+                                    <div className="flex items-center gap-3">
+                                      <label className="flex items-center gap-1.5">
+                                        <span style={{ color: theme.textSecondary }}>Minutes</span>
+                                        <input
+                                          type="number"
+                                          min={1}
+                                          max={180}
+                                          value={customMinutesInput}
+                                          onChange={e => setCustomMinutesInput(Number(e.target.value))}
+                                          className="w-16 px-2 py-1 rounded border font-mono text-center focus:outline-none"
+                                          style={{
+                                            backgroundColor: theme.cardSecondaryHex,
+                                            borderColor: theme.cardBorderHex,
+                                            color: theme.textPrimary
+                                          }}
+                                        />
+                                      </label>
+                                      <label className="flex items-center gap-1.5">
+                                        <span style={{ color: theme.textSecondary }}>Increment (s)</span>
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={60}
+                                          value={customIncInput}
+                                          onChange={e => setCustomIncInput(Number(e.target.value))}
+                                          className="w-16 px-2 py-1 rounded border font-mono text-center focus:outline-none"
+                                          style={{
+                                            backgroundColor: theme.cardSecondaryHex,
+                                            borderColor: theme.cardBorderHex,
+                                            color: theme.textPrimary
+                                          }}
+                                        />
+                                      </label>
+                                      <button
+                                        type="button"
+                                        onClick={applyCustomTime}
+                                        className="px-3 py-1 rounded-lg font-bold"
+                                        style={{
+                                          backgroundColor: theme.accentHex,
+                                          color: theme.accentTextHex
+                                        }}
+                                      >
+                                        Apply {customMinutesInput}+{customIncInput}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+              
+                                {/* Main Board Arena */}
+                                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Board Column */}
         <div className="lg:col-span-8 flex flex-col items-center gap-2.5">
           {/* Top Plate */}
@@ -4285,6 +4285,9 @@ export const PlayView: React.FC<PlayViewProps> = ({
         }}
         onClose={() => setShowCharacterModal(false)}
       />
-    </div>
-  );
-};
+                </div>
+              )}
+            </>
+          )}
+
+      {/* End of Match Overlay */}
