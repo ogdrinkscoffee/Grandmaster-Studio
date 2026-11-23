@@ -7,7 +7,7 @@ import { ENDGAME_DRILLS } from './endgameDrills';
 export type SearchCategory = 'all' | 'game' | 'variant' | 'help';
 
 export type SearchActionTarget =
-  | { type: 'tab'; tab: 'play' | 'variants' | 'puzzles' | 'train' | 'coach' | 'dashboard'; trainSection?: 'openings' | 'endgames' | 'vision' | 'analysis'; variantsSubTab?: 'catalog' | 'custom' }
+  | { type: 'tab'; tab: 'play' | 'variants' | 'puzzles' | 'train' | 'coach' | 'dashboard'; trainSection?: 'openings' | 'endgames' | 'vision' | 'analysis' | 'editor'; variantsSubTab?: 'catalog' | 'custom' }
   | { type: 'daily_puzzle' }
   | { type: 'settings'; tab: 'customization' | 'gameplay' | 'sync' }
   | { type: 'shortcuts' };
@@ -155,6 +155,20 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     keywords: ['training', 'opening', 'repertoire', 'endgame', 'drills', 'lucena', 'philidor', 'analysis board', 'fen', 'pgn'],
     action: { label: 'Open Training Hub', target: { type: 'tab', tab: 'train', trainSection: 'openings' } }
+  },
+  {
+    id: 'help-board-editor-explorer',
+    title: 'Board Position Editor, Opening Explorer & Zen Mode',
+    section: 'Training & Analysis',
+    summary: 'Build custom FEN positions visually, inspect Lichess-style Opening Explorer W/D/B win-rate bars, or press Z in Play Arena for Zen Mode.',
+    steps: [
+      'Open Learn → Board Editor to place White/Black pieces, configure turn & castling rights, or load presets like Lucena.',
+      'Click Analyze Position to send your setup to the Analysis Board, or Play vs Engine to spar immediately.',
+      'Inside Learn → Analysis board, click any Opening Explorer continuation move to explore theory and W/D/B statistics.',
+      'In the Play Arena, press Z (or click Zen Mode) to hide setup toolbars for distraction-free play.'
+    ],
+    keywords: ['board editor', 'position editor', 'setup', 'opening explorer', 'win rate', 'zen mode', 'focus mode', 'fen'],
+    action: { label: 'Open Board Editor', target: { type: 'tab', tab: 'train', trainSection: 'editor' } }
   },
   {
     id: 'help-pgn-review',

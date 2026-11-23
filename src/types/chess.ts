@@ -321,7 +321,7 @@ export type KingFinialStyle = 'crescent' | 'star' | 'crescent_star';
 
 export type PremoveMode = 'off' | '2' | 'infinite';
 
-export type OpponentMode = 'ai' | 'local_2p' | 'coach';
+export type OpponentMode = 'ai' | 'local_2p' | 'coach' | 'online';
 
 export type AIThinkingMode = 'human' | 'instant';
 

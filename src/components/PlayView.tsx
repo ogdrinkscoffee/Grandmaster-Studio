@@ -10,6 +10,7 @@ import {
   OpponentMode,
   PieceType
 } from '../types/chess';
+import { QuickPlayRequest } from './AppViewProps';
 import {
   evaluateBoard,
   AI_BOT_PROFILES,
@@ -93,8 +94,14 @@ import {
   ShieldAlert,
   SlidersHorizontal,
   Bot,
-  GraduationCap
+  GraduationCap,
+  Maximize2,
+  Minimize2,
+  Globe
 } from 'lucide-react';
+import { User } from 'firebase/auth';
+import { OnlinePlayerPublic } from '../engine/onlineClassic';
+import { OnlinePlayPanel } from './OnlinePlayPanel';
 
 interface TimePreset {
   id: string;
@@ -142,11 +149,18 @@ interface PlayViewProps {
     mode?: OpponentMode;
     key: number;
   } | null;
+  quickPlayRequest?: QuickPlayRequest | null;
+  initialFenRequest?: { fen: string; key: number } | null;
   onSaveGame: (game: GameHistoryItem) => void;
   onRunGameReview: (game: GameHistoryItem) => void;
   onUpdateSettings?: (newSettings: UserSettings) => void;
   onEditVariantRules?: (config: CustomVariantConfig) => void;
-  isMobile?: boolean;
+  firebaseUser?: User | null;
+  publicProfile?: OnlinePlayerPublic | null;
+  pendingChallengeCode?: string | null;
+  onConsumeChallengeCode?: () => void;
+  onOpenAuthModal?: () => void;
+  onOnlineEloUpdated?: (bucket: 'bullet' | 'blitz' | 'rapid', elo: number) => void;
 }
 
 export const PlayView: React.FC<PlayViewProps> = ({
@@ -156,12 +170,29 @@ export const PlayView: React.FC<PlayViewProps> = ({
   playerRapidElo = 1450,
   recentGames = [],
   botChallengeRequest = null,
+  quickPlayRequest = null,
+  initialFenRequest = null,
   onSaveGame,
   onRunGameReview,
   onUpdateSettings,
-  isMobile = false
+  firebaseUser = null,
+  publicProfile = null,
+  pendingChallengeCode = null,
+  onConsumeChallengeCode,
+  onOpenAuthModal,
+  onOnlineEloUpdated
 }) => {
   const { theme } = useAppTheme();
+  const [isCompactViewport, setIsCompactViewport] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const sync = () => setIsCompactViewport(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
   const [selectedVariant, setSelectedVariant] = useState<VariantId>(initialVariant);
   const [activeCustomConfig, setActiveCustomConfig] = useState<CustomVariantConfig | null>(() => {
     if (customVariantConfig) return customVariantConfig;
@@ -171,7 +202,9 @@ export const PlayView: React.FC<PlayViewProps> = ({
     return null;
   });
 
-  const [opponentMode, setOpponentMode] = useState<OpponentMode>('ai');
+  const [opponentMode, setOpponentMode] = useState<OpponentMode>(() =>
+    pendingChallengeCode || quickPlayRequest?.mode === 'online' ? 'online' : 'ai'
+  );
   const [selectedBot, setSelectedBot] = useState<BotProfile>(
     () => AI_BOT_PROFILES.find(b => b.id === 'bot_viktor') || AI_BOT_PROFILES[0]
   );
@@ -194,6 +227,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
   const [showPlayModeMenu, setShowPlayModeMenu] = useState<boolean>(false);
   const [showTimeMenu, setShowTimeMenu] = useState<boolean>(false);
   const [showCharacterModal, setShowCharacterModal] = useState<boolean>(false);
+  const [zenMode, setZenMode] = useState<boolean>(false);
   const [liveCoachTip, setLiveCoachTip] = useState<{
     title: string;
     body: string;
@@ -514,6 +548,86 @@ export const PlayView: React.FC<PlayViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botChallengeRequest]);
 
+  // Automatically enter Online (Classic Only) arena when opening a ?challenge= URL
+  useEffect(() => {
+    if (!pendingChallengeCode) return;
+    setSelectedVariant('standard');
+    selectedVariantRef.current = 'standard';
+    setActiveCustomConfig(null);
+    customStateRef.current = null;
+    setCustomState(null);
+    setOpponentMode('online');
+    opponentModeRef.current = 'online';
+    setZenMode(false);
+  }, [pendingChallengeCode]);
+
+  // Launch quick-play pairing requested from HomeView
+  useEffect(() => {
+    if (!quickPlayRequest) return;
+    const targetMode: OpponentMode = quickPlayRequest.mode;
+    if (targetMode === 'online') {
+      setSelectedVariant('standard');
+      selectedVariantRef.current = 'standard';
+      setActiveCustomConfig(null);
+      customStateRef.current = null;
+      setCustomState(null);
+      setOpponentMode('online');
+      opponentModeRef.current = 'online';
+      setZenMode(false);
+      return;
+    }
+    const foundPreset = TIME_PRESETS.find(p => p.id === quickPlayRequest.presetId);
+    const resolvedSecs = foundPreset ? foundPreset.seconds : initialTimeSecRef.current;
+    if (foundPreset) {
+      applyTimePreset(foundPreset.id);
+      initialTimeSecRef.current = foundPreset.seconds;
+    }
+    const targetVariant: VariantId = quickPlayRequest.variant || 'standard';
+    setOpponentMode(targetMode);
+    if (targetMode === 'local_2p') {
+      setShowCustomElo(false);
+      setPlayerColor('w');
+      setIsFlipped(false);
+      startNewGame(targetVariant, null, 'w', 'default', 'local_2p', resolvedSecs);
+    } else {
+      if (targetMode === 'coach') {
+        applyAssistPreset('coach');
+      }
+      const resolvedColor: PieceColor =
+        sidePreference === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : sidePreference;
+      setPlayerColor(resolvedColor);
+      setIsFlipped(resolvedColor === 'b');
+      startNewGame(targetVariant, null, resolvedColor, 'default', targetMode, resolvedSecs);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickPlayRequest]);
+
+  // Launch custom position from PositionEditor or AnalysisBoard into Play Arena
+  useEffect(() => {
+    if (!initialFenRequest) return;
+    try {
+      const nextChess = new Chess(initialFenRequest.fen);
+      selectedVariantRef.current = 'standard';
+      setSelectedVariant('standard');
+      setActiveCustomConfig(null);
+      customStateRef.current = null;
+      setCustomState(null);
+      resetSharedMatchState(initialTimeSecRef.current);
+      setStartFenForReplay(nextChess.fen());
+      chessRef.current = nextChess;
+      setChess(nextChess);
+      setEvalScore(evaluateBoard(nextChess));
+      const desiredColor: PieceColor = opponentModeRef.current === 'local_2p' ? 'w' : nextChess.turn();
+      playerColorRef.current = desiredColor;
+      setPlayerColor(desiredColor);
+      setIsFlipped(desiredColor === 'b');
+      setFenStatus('Custom position loaded');
+    } catch {
+      // ignore invalid fen request
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFenRequest]);
+
   const applyAssistPreset = (preset: 'coach' | 'standard' | 'challenge') => {
     setAssistPreset(preset);
     if (preset === 'coach') {
@@ -600,7 +714,8 @@ export const PlayView: React.FC<PlayViewProps> = ({
     forcedCustom?: CustomVariantConfig | null,
     forcedColor?: PieceColor,
     forcedOpeningId?: string,
-    forcedOpponentMode?: OpponentMode
+    forcedOpponentMode?: OpponentMode,
+    forcedInitialTimeSec?: number
   ) => {
     const nextColor = forcedColor || playerColor;
     const effectiveMode = forcedOpponentMode || opponentMode;
@@ -617,7 +732,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
     setSelectedVariant(variantId);
     setActiveCustomConfig(customCfg);
-    resetSharedMatchState(initialTimeSec);
+    resetSharedMatchState(forcedInitialTimeSec ?? initialTimeSec);
 
     if (customCfg) {
       const freshCustom = createCustomGameState(customCfg);
@@ -2174,8 +2289,8 @@ export const PlayView: React.FC<PlayViewProps> = ({
     const liveEvalAllowed = !isLiveEvalOffInAI;
     const evalHidden = settings.evalBarPosition === 'hidden' || isLiveEvalOffInAI;
     // Player plates and panels track the board size setting (board + eval bar gutter), like ChessBoard does.
-    // On mobile, the board fits to screen so no maxWidth constraint is applied.
-    const boardPlateStyle: React.CSSProperties = isMobile
+    // On compact viewports, the board fits to screen so no maxWidth constraint is applied.
+    const boardPlateStyle: React.CSSProperties = isCompactViewport
       ? {}
       : {
           maxWidth: `${getBoardMaxWidthPx(settings.boardSize) + (evalHidden ? 0 : 44)}px`
@@ -2202,6 +2317,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
   // Play Arena gameplay & ledger shortcuts (F, H, U, P, N, T, move stepping)
   const playShortcutRef = useRef<(e: KeyboardEvent) => void>(() => {});
   playShortcutRef.current = (e: KeyboardEvent) => {
+    if (opponentModeRef.current === 'online') return;
     const action = resolvePlayViewShortcut(e, {
       keyboardControl: Boolean(settings.keyboardControl),
       hasMoves: !isCustomMode && analyzedMoves.length > 0,
@@ -2248,6 +2364,9 @@ export const PlayView: React.FC<PlayViewProps> = ({
       window.requestAnimationFrame(() => {
         notationInputRef.current?.focus();
       });
+    } else if (action.type === 'toggle_zen') {
+      e.preventDefault();
+      setZenMode(z => !z);
     } else if (action.type === 'history_first') {
       e.preventDefault();
       setReviewPly(0);
@@ -2272,7 +2391,27 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
   return (
     <div className="flex flex-col gap-5 max-w-7xl mx-auto px-3 sm:px-6 py-4" style={{ color: theme.textPrimary }}>
-      {/* Precision Match Setup Bar */}
+      {zenMode ? (
+        <div className="flex items-center justify-between gap-3 text-xs">
+          <span className="font-mono font-semibold" style={{ color: theme.textMutedHex }}>
+            Zen Focus · {activeTitle} · {opponentMode === 'local_2p' ? 'Pass & Play' : `${effectiveBot.name} (${effectiveBot.elo})`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setZenMode(false)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-bold transition hover:opacity-85 cursor-pointer whitespace-nowrap"
+            style={{
+              backgroundColor: theme.cardHex,
+              borderColor: theme.accentHex,
+              color: theme.accentHex
+            }}
+          >
+            <Minimize2 className="w-3.5 h-3.5" />
+            <span>Exit Zen Mode (Z)</span>
+          </button>
+        </div>
+      ) : (
+      /* Precision Match Setup Bar */
       <div
         className="flex flex-col gap-3 rounded-xl px-4 py-3 border"
         style={{
@@ -2283,46 +2422,74 @@ export const PlayView: React.FC<PlayViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           {/* Character / Mode Summary */}
           <div className="flex items-center gap-3 min-w-0 sm:flex-1">
-            <button
-              type="button"
-              onClick={() => isVsAI && setShowCharacterModal(true)}
-              disabled={!isVsAI}
-              title={isVsAI ? 'Browse AI Characters' : 'Pass & Play (Local Shared Board)'}
-              className={`relative rounded-xl shrink-0 transition ${
-                isVsAI ? 'hover:scale-105 cursor-pointer ring-1 ring-white/10 hover:ring-2' : 'cursor-default'
-              }`}
-              style={{
-                boxShadow: isVsAI ? `0 2px 10px ${effectiveBot.accentHex || theme.accentHex}30` : undefined
-              }}
-            >
-              <BotCharacterAvatar
-                botId={effectiveBot.id}
-                elo={effectiveBot.elo}
-                isLocal2P={opponentMode === 'local_2p'}
-                size={44}
-              />
-            </button>
+            {opponentMode === 'online' ? (
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                style={{
+                  backgroundColor: `${theme.accentHex}1f`,
+                  border: `1px solid ${theme.accentHex}55`,
+                  color: theme.accentHex
+                }}
+              >
+                <Globe className="w-5 h-5" />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => isVsAI && setShowCharacterModal(true)}
+                disabled={!isVsAI}
+                title={isVsAI ? 'Browse AI Characters' : 'Pass & Play (Local Shared Board)'}
+                className={`relative rounded-xl shrink-0 transition ${
+                  isVsAI ? 'hover:scale-105 cursor-pointer ring-1 ring-white/10 hover:ring-2' : 'cursor-default'
+                }`}
+                style={{
+                  boxShadow: isVsAI ? `0 2px 10px ${effectiveBot.accentHex || theme.accentHex}30` : undefined
+                }}
+              >
+                <BotCharacterAvatar
+                  botId={effectiveBot.id}
+                  elo={effectiveBot.elo}
+                  isLocal2P={opponentMode === 'local_2p'}
+                  size={44}
+                />
+              </button>
+            )}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => isVsAI && setShowCharacterModal(true)}
-                  disabled={!isVsAI}
-                  className={`font-display font-bold text-sm sm:text-base tracking-tight text-left whitespace-nowrap ${
-                    isVsAI ? 'hover:underline cursor-pointer' : 'cursor-default'
-                  }`}
-                  style={{ color: theme.textPrimary }}
-                >
-                  {opponentMode === 'local_2p' ? 'Pass & Play (2 Players)' : effectiveBot.name}
-                </button>
+                {opponentMode === 'online' ? (
+                  <span className="font-display font-bold text-sm sm:text-base tracking-tight" style={{ color: theme.textPrimary }}>
+                    Online Arena · Classic Only
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => isVsAI && setShowCharacterModal(true)}
+                    disabled={!isVsAI}
+                    className={`font-display font-bold text-sm sm:text-base tracking-tight text-left whitespace-nowrap ${
+                      isVsAI ? 'hover:underline cursor-pointer' : 'cursor-default'
+                    }`}
+                    style={{ color: theme.textPrimary }}
+                  >
+                    {opponentMode === 'local_2p' ? 'Pass & Play (2 Players)' : effectiveBot.name}
+                  </button>
+                )}
                 {opponentMode === 'coach' && (
                   <span className="text-xs font-mono font-bold whitespace-nowrap" style={{ color: theme.accentHex }}>
                     · Coach Mode
                   </span>
                 )}
               </div>
-              <p className="text-xs truncate max-w-xl flex items-center gap-1.5" style={{ color: theme.textSecondary }}>
-                {isVsAI ? (
+              <p className="text-xs flex flex-wrap items-center gap-x-1.5 gap-y-0.5" style={{ color: theme.textSecondary }}>
+                {opponentMode === 'online' ? (
+                  <>
+                    <span className="font-mono font-bold" style={{ color: theme.accentHex }}>
+                      Standard Rules
+                    </span>
+                    <span style={{ color: theme.textMutedHex }}>
+                      · Bullet, Blitz, Rapid, Classical, Unlimited &amp; Custom Clocks
+                    </span>
+                  </>
+                ) : isVsAI ? (
                   <>
                     <span className="font-mono font-bold tabular-nums whitespace-nowrap" style={{ color: effectiveBot.accentHex || theme.accentHex }}>
                       {effectiveBot.elo} Elo
@@ -2346,7 +2513,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
                     </span>
                   </>
                 )}
-                {detectedOpening && (
+                {opponentMode !== 'online' && detectedOpening && (
                   <span className="hidden sm:inline-flex items-center gap-1 whitespace-nowrap" style={{ color: theme.textSecondary }}>
                     <span>·</span>
                     <BookOpen className="w-3 h-3 shrink-0" style={{ color: theme.accentHex }} />
@@ -2360,6 +2527,36 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
           {/* Primary Right Actions: Play Mode + Timer + Side Circle + Assists + Bots Picker + New Game */}
           <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+            {/* Quick Online Classic Switch Pill */}
+            <button
+              type="button"
+              onClick={() => {
+                if (opponentMode === 'online') {
+                  setOpponentMode('ai');
+                  opponentModeRef.current = 'ai';
+                  startNewGame(selectedVariant, activeCustomConfig, playerColor, openingId, 'ai');
+                } else {
+                  setSelectedVariant('standard');
+                  selectedVariantRef.current = 'standard';
+                  setActiveCustomConfig(null);
+                  customStateRef.current = null;
+                  setCustomState(null);
+                  setOpponentMode('online');
+                  opponentModeRef.current = 'online';
+                  setZenMode(false);
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition hover:opacity-90 cursor-pointer whitespace-nowrap"
+              style={{
+                backgroundColor: opponentMode === 'online' ? theme.accentHex : theme.cardSecondaryHex,
+                borderColor: opponentMode === 'online' ? theme.accentHex : theme.cardBorderHex,
+                color: opponentMode === 'online' ? theme.accentTextHex : theme.textPrimary
+              }}
+            >
+              <Globe className="w-3.5 h-3.5 shrink-0" />
+              <span>{opponentMode === 'online' ? 'Online Classic Active' : 'Online Classic'}</span>
+            </button>
+
             {/* Play Mode Dropdown (icon-only trigger, full labels inside menu) */}
             <div className="relative" ref={playModeMenuRef}>
               <button
@@ -2371,14 +2568,18 @@ export const PlayView: React.FC<PlayViewProps> = ({
                 }}
                 aria-expanded={showPlayModeMenu}
                 aria-label={`Select play mode (current: ${
-                  opponentMode === 'coach'
+                  opponentMode === 'online'
+                    ? 'Online (Classic Only)'
+                    : opponentMode === 'coach'
                     ? 'Coach Game'
                     : opponentMode === 'ai'
                     ? 'vs AI Character'
                     : 'Pass & Play (2P)'
                 })`}
                 title={
-                  opponentMode === 'coach'
+                  opponentMode === 'online'
+                    ? 'Mode: Online Multiplayer (Classic Variant Only)'
+                    : opponentMode === 'coach'
                     ? 'Mode: Coach Game (Teach While You Play)'
                     : opponentMode === 'ai'
                     ? 'Mode: vs AI Character'
@@ -2386,12 +2587,14 @@ export const PlayView: React.FC<PlayViewProps> = ({
                 }
                 className="flex items-center justify-center w-8 h-8 rounded-lg border transition hover:opacity-85 shrink-0 cursor-pointer"
                 style={{
-                  backgroundColor: showPlayModeMenu || opponentMode === 'coach' ? `${theme.accentHex}18` : theme.cardSecondaryHex,
-                  borderColor: showPlayModeMenu || opponentMode === 'coach' ? theme.accentHex : theme.cardBorderHex,
+                  backgroundColor: showPlayModeMenu || opponentMode === 'coach' || opponentMode === 'online' ? `${theme.accentHex}18` : theme.cardSecondaryHex,
+                  borderColor: showPlayModeMenu || opponentMode === 'coach' || opponentMode === 'online' ? theme.accentHex : theme.cardBorderHex,
                   color: theme.accentHex
                 }}
               >
-                {opponentMode === 'coach' ? (
+                {opponentMode === 'online' ? (
+                  <Globe className="w-4 h-4" />
+                ) : opponentMode === 'coach' ? (
                   <GraduationCap className="w-4 h-4" />
                 ) : opponentMode === 'ai' ? (
                   <Cpu className="w-4 h-4" />
@@ -2413,6 +2616,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
                     Play Mode
                   </div>
                   {([
+                    { id: 'online' as OpponentMode, label: 'Online (Classic Only)', Icon: Globe },
                     { id: 'ai' as OpponentMode, label: 'AI Characters', Icon: Cpu },
                     { id: 'coach' as OpponentMode, label: 'Coach Practice', Icon: GraduationCap },
                     { id: 'local_2p' as OpponentMode, label: 'Pass & Play', Icon: Users }
@@ -2425,6 +2629,17 @@ export const PlayView: React.FC<PlayViewProps> = ({
                         onClick={() => {
                           setShowPlayModeMenu(false);
                           if (item.id === opponentMode) return;
+                          if (item.id === 'online') {
+                            setSelectedVariant('standard');
+                            selectedVariantRef.current = 'standard';
+                            setActiveCustomConfig(null);
+                            customStateRef.current = null;
+                            setCustomState(null);
+                            setOpponentMode('online');
+                            opponentModeRef.current = 'online';
+                            setZenMode(false);
+                            return;
+                          }
                           setOpponentMode(item.id);
                           if (item.id === 'local_2p') {
                             setShowCustomElo(false);
@@ -2459,6 +2674,8 @@ export const PlayView: React.FC<PlayViewProps> = ({
               )}
             </div>
 
+            {opponentMode !== 'online' && (
+              <>
             {/* Timer Chooser Dropdown (icon-only trigger, full labels inside menu) */}
             <div className="relative" ref={timeMenuRef}>
               <button
@@ -2694,8 +2911,8 @@ export const PlayView: React.FC<PlayViewProps> = ({
                             color: theme.textPrimary
                           }}
                         >
-                          <option value="left" style={{ backgroundColor: theme.cardHex }}>{isMobile ? 'Show Above' : 'Show Left'}</option>
-                          <option value="right" style={{ backgroundColor: theme.cardHex }}>{isMobile ? 'Show Below' : 'Show Right'}</option>
+                          <option value="left" style={{ backgroundColor: theme.cardHex }}>{isCompactViewport ? 'Show Above' : 'Show Left'}</option>
+                          <option value="right" style={{ backgroundColor: theme.cardHex }}>{isCompactViewport ? 'Show Below' : 'Show Right'}</option>
                           <option value="hidden" style={{ backgroundColor: theme.cardHex }}>Hidden</option>
                         </select>
                       </label>
@@ -2866,6 +3083,21 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
             <button
               type="button"
+              onClick={() => setZenMode(true)}
+              aria-label="Enter Zen Mode"
+              title="Zen / Focus Mode (Z)"
+              className="flex items-center justify-center w-8 h-8 rounded-lg border transition hover:opacity-85 shrink-0 cursor-pointer"
+              style={{
+                backgroundColor: theme.cardSecondaryHex,
+                borderColor: theme.cardBorderHex,
+                color: theme.textSecondary
+              }}
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              type="button"
               onClick={() => {
                 const resolved: PieceColor =
                   isVsAI && sidePreference === 'random'
@@ -2888,10 +3120,27 @@ export const PlayView: React.FC<PlayViewProps> = ({
               <RotateCcw className="w-3.5 h-3.5" />
               <span>New Game</span>
             </button>
+              </>
+            )}
           </div>
         </div>
       </div>
+      )}
 
+      {opponentMode === 'online' ? (
+        <OnlinePlayPanel
+          firebaseUser={firebaseUser}
+          publicProfile={publicProfile}
+          settings={settings}
+          pendingChallengeCode={pendingChallengeCode}
+          onConsumeChallengeCode={onConsumeChallengeCode}
+          onOpenAuthModal={onOpenAuthModal || (() => {})}
+          onSaveOnlineGame={onSaveGame}
+          onRunGameReview={onRunGameReview}
+          onOnlineEloUpdated={onOnlineEloUpdated}
+        />
+      ) : (
+        <>
       {/* Custom AI Elo Calibration Bar (100 to 3600 Max Strength) */}
       {isVsAI && showCustomElo && (
         <div
@@ -3089,7 +3338,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
               )}
             </div>
             <div
-              className="px-3 py-1 rounded-lg font-mono font-bold text-sm tabular-nums"
+              className="px-3.5 py-1.5 rounded-lg font-mono font-bold text-sm sm:text-base tabular-nums shrink-0"
               style={{
                 backgroundColor: activeTurn === topSideColor ? `${theme.accentHex}20` : theme.cardSecondaryHex,
                 color: activeTurn === topSideColor ? theme.accentHex : theme.textSecondary,
@@ -3102,8 +3351,8 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
           {/* EvalBar + ChessBoard */}
                     <div className="flex flex-col items-center gap-2.5 w-full">
-                      {/* Horizontal eval bar on mobile - placed above board when position is 'left' */}
-                      {isMobile && !evalHidden && settings.evalBarPosition === 'left' && (
+                      {/* Horizontal eval bar on compact viewports - placed above board when position is 'left' */}
+                      {isCompactViewport && !evalHidden && settings.evalBarPosition === 'left' && (
                         <EvalBar
                           scoreCp={evalScore}
                           isFlipped={effectiveIsFlipped}
@@ -3115,7 +3364,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
                       )}
           
                       <div className="flex items-center justify-center gap-3 w-full">
-                        {!isMobile && !evalHidden && settings.evalBarPosition === 'left' && (
+                        {!isCompactViewport && !evalHidden && settings.evalBarPosition === 'left' && (
                           <EvalBar
                             scoreCp={evalScore}
                             isFlipped={effectiveIsFlipped}
@@ -3136,7 +3385,6 @@ export const PlayView: React.FC<PlayViewProps> = ({
                             customShieldedPos={customState.shieldedPos ?? null}
                             isPlacingDuck={isPlacingDuck}
                             isFlipped={effectiveIsFlipped}
-                            isMobile={isMobile}
                             theme={settings.boardTheme}
                             pieceSet={settings.pieceSet}
                             showCoordinates={settings.showCoordinates}
@@ -3163,7 +3411,6 @@ export const PlayView: React.FC<PlayViewProps> = ({
                               <ChessBoard
                                 chess={boardToRender}
                                 isFlipped={effectiveIsFlipped}
-                                isMobile={isMobile}
                                 theme={settings.boardTheme}
                                 pieceSet={settings.pieceSet}
                                 showCoordinates={settings.showCoordinates}
@@ -3193,7 +3440,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
                           })()
                         )}
           
-                        {!isMobile && !evalHidden && settings.evalBarPosition === 'right' && (
+                        {!isCompactViewport && !evalHidden && settings.evalBarPosition === 'right' && (
                           <EvalBar
                             scoreCp={evalScore}
                             isFlipped={effectiveIsFlipped}
@@ -3204,8 +3451,8 @@ export const PlayView: React.FC<PlayViewProps> = ({
                         )}
                       </div>
           
-                      {/* Horizontal eval bar on mobile - placed below board when position is 'right' */}
-                      {isMobile && !evalHidden && settings.evalBarPosition === 'right' && (
+                      {/* Horizontal eval bar on compact viewports - placed below board when position is 'right' */}
+                      {isCompactViewport && !evalHidden && settings.evalBarPosition === 'right' && (
                         <EvalBar
                           scoreCp={evalScore}
                           isFlipped={effectiveIsFlipped}
@@ -3268,7 +3515,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
               )}
             </div>
             <div
-              className="px-3 py-1 rounded-lg font-mono font-bold text-sm tabular-nums"
+              className="px-3.5 py-1.5 rounded-lg font-mono font-bold text-sm sm:text-base tabular-nums shrink-0"
               style={{
                 backgroundColor: activeTurn === bottomSideColor ? `${theme.accentHex}20` : theme.cardSecondaryHex,
                 color: activeTurn === bottomSideColor ? theme.accentHex : theme.textSecondary,
@@ -4254,6 +4501,8 @@ export const PlayView: React.FC<PlayViewProps> = ({
         }}
         onClose={() => setShowCharacterModal(false)}
       />
+        </>
+      )}
     </div>
   );
 };

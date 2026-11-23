@@ -768,20 +768,57 @@ export const CoachView: React.FC<CoachViewProps> = ({
         </div>
 
         <div
-          className="w-full h-[270px] rounded-lg p-3 border"
+          className="w-full min-h-[240px] rounded-lg p-3 border"
           style={{
             backgroundColor: currentTheme.cardSecondaryHex,
             borderColor: currentTheme.cardBorderHex
           }}
         >
           {phaseAccuracySeries.length === 0 ? (
-            <div className="w-full h-full flex items-center justify-center text-center px-4">
+            <div className="w-full h-[220px] flex items-center justify-center text-center px-4">
               <p className="text-xs max-w-md" style={{ color: currentTheme.textSecondary }}>
                 Play or import analyzed games to view your real Opening, Middlegame, and Endgame accuracy progression.
               </p>
             </div>
+          ) : phaseAccuracySeries.length === 1 ? (
+            <div className="w-full flex flex-col justify-between gap-4 p-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-bold" style={{ color: currentTheme.textPrimary }}>
+                  Baseline Match · {phaseAccuracySeries[0].label}
+                </span>
+                <span style={{ color: currentTheme.textMutedHex }}>
+                  Complete 1 more analyzed match to plot your trend curve
+                </span>
+              </div>
+              <div className="space-y-3 py-2">
+                {[
+                  { name: 'Opening', val: phaseAccuracySeries[0].opening, color: currentTheme.accentHex },
+                  { name: 'Middlegame', val: phaseAccuracySeries[0].middlegame, color: '#38bdf8' },
+                  { name: 'Endgame', val: phaseAccuracySeries[0].endgame, color: '#f59e0b' }
+                ].map(phase => (
+                  <div key={phase.name} className="space-y-1">
+                    <div className="flex justify-between text-xs font-mono tabular-nums">
+                      <span className="font-semibold" style={{ color: currentTheme.textPrimary }}>{phase.name}</span>
+                      <span className="font-bold" style={{ color: phase.color }}>
+                        {phase.val !== null ? `${phase.val.toFixed(1)}%` : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="w-full h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: currentTheme.cardHex }}>
+                      <div
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{
+                          width: `${phase.val !== null ? Math.max(4, Math.min(100, phase.val)) : 0}%`,
+                          backgroundColor: phase.color
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
+            <div className="w-full h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
               <LineChart data={phaseAccuracySeries} margin={{ top: 8, right: 16, left: -12, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={currentTheme.cardBorderHex} opacity={0.6} />
                 <XAxis
@@ -842,7 +879,8 @@ export const CoachView: React.FC<CoachViewProps> = ({
                   activeDot={{ r: 5 }}
                 />
               </LineChart>
-            </ResponsiveContainer>
+              </ResponsiveContainer>
+            </div>
           )}
         </div>
       </div>

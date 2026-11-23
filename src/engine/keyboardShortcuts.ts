@@ -164,6 +164,14 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcutItem[] = [
     settingKey: 'notationInput'
   },
   {
+    id: 'play-zen',
+    keys: ['Z'],
+    action: 'Zen / Focus Mode',
+    description: 'Hide setup toolbars and chrome during live play for distraction-free focus',
+    scope: 'gameplay',
+    scopeLabel: 'Play Arena'
+  },
+  {
     id: 'play-cancel-premoves',
     keys: ['Esc'],
     action: 'Cancel Premoves & Arrows',
@@ -343,6 +351,7 @@ export type PlayViewShortcutAction =
   | { type: 'toggle_pause' }
   | { type: 'new_game' }
   | { type: 'focus_notation' }
+  | { type: 'toggle_zen' }
   | { type: 'history_first' }
   | { type: 'history_prev' }
   | { type: 'history_next' }
@@ -362,6 +371,7 @@ export function resolvePlayViewShortcut(
   if (lower === 'p') return { type: 'toggle_pause' };
   if (lower === 'n') return { type: 'new_game' };
   if (lower === 't') return { type: 'focus_notation' };
+  if (lower === 'z') return { type: 'toggle_zen' };
 
   if (!options.hasMoves) return null;
 

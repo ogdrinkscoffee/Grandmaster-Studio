@@ -47,7 +47,6 @@ interface ChessBoardProps {
   onMakeMove?: (move: { from: Square; to: Square; promotion?: string }) => boolean | void;
   onPlaceDuck?: (square: Square) => void;
   disabled?: boolean;
-  isMobile?: boolean;
   // Premove props (8x8 mode)
   playerColor?: PieceColor;
   premoveMode?: PremoveMode;
@@ -267,7 +266,6 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
   onMakeMove,
   onPlaceDuck,
   disabled = false,
-  isMobile = false,
   playerColor,
   premoveMode = 'off',
   premoves = [],
@@ -292,7 +290,7 @@ export const ChessBoard: React.FC<ChessBoardProps> = React.memo(({
   const autoQueen = runtime.autoQueen !== false;
   const reduceMotion = runtime.batterySaver;
   const keyboardControlEnabled = runtime.keyboardControl;
-  const boardMaxWidth = isMobile ? '100%' : `${getBoardMaxWidthPx(runtime.boardSize)}px`;
+  const boardMaxWidth = `min(100%, ${getBoardMaxWidthPx(runtime.boardSize)}px)`;
 
   const gridHeight = customGrid ? customGrid.length : 8;
   const gridWidth = customGrid ? customGrid[0]?.length || 8 : 8;

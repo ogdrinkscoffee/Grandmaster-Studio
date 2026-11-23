@@ -26,7 +26,7 @@ import { ChessPieceIcon } from './ChessPieces';
 import { resolveBoardTheme } from '../theme/themes';
 import { getVariantDisplayName } from '../engine/variants';
 import { computeDailyPuzzleStreak, loadDailyPuzzleStreakState } from '../engine/dailyPuzzleStreak';
-import { getCachedDailyPuzzle, fetchDailyLichessPuzzle } from '../engine/puzzles';
+import { getCachedDailyPuzzle, fetchDailyLichessPuzzle, formatPuzzleThemeLabel } from '../engine/puzzles';
 import { PROGRESS_EVENT } from '../engine/progressEvents';
 import { loadVisionBestScore } from './VisionTrainer';
 
@@ -657,7 +657,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <span>Daily Puzzle</span>
               </div>
               <h2 className="font-display text-sm sm:text-base font-bold mt-0.5 truncate" style={{ color: currentTheme.textPrimary }}>
-                {dailyPuzzle.theme.replace(/^Daily Challenge · /, '')}
+                {formatPuzzleThemeLabel(dailyPuzzle.theme)}
               </h2>
               <p className="text-xs font-mono tabular-nums mt-0.5" style={{ color: currentTheme.textMutedHex }}>
                 Elo {dailyPuzzle.rating} · {dailyPuzzle.playerColor === 'w' ? 'White to move' : 'Black to move'}

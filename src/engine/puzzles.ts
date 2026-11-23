@@ -458,6 +458,56 @@ export function getCachedDailyPuzzle(dateKey: string = getTodayLocalDateKey()): 
   return getLocalDailyPuzzle(dateKey);
 }
 
+const PUZZLE_THEME_LABELS: Record<string, string> = {
+  veryLong: 'Deep Calculation Line',
+  long: 'Multi-Move Tactic',
+  short: 'Sharp Tactical Shot',
+  oneMove: 'Mate in One',
+  backRankMate: 'Back Rank Mate',
+  smotheredMate: 'Smothered Mate',
+  arabianMate: 'Arabian Mate',
+  anastasiaMate: "Anastasia's Mate",
+  discoveredAttack: 'Discovered Attack',
+  doubleCheck: 'Double Check',
+  deflection: 'Deflection Tactic',
+  attraction: 'Decoy & Attraction',
+  clearance: 'Clearance Sacrifice',
+  interference: 'Interference Tactic',
+  intermezzo: 'In-Between Move',
+  quietMove: 'Quiet Winning Move',
+  xRayAttack: 'X-Ray Attack',
+  zugzwang: 'Zugzwang Endgame',
+  hangingPiece: 'Hanging Piece',
+  trappedPiece: 'Trapped Piece',
+  exposedKing: 'Exposed King Attack',
+  kingsideAttack: 'Kingside Attack',
+  queensideAttack: 'Queenside Attack',
+  endgame: 'Endgame Technique',
+  middlegame: 'Middlegame Tactic',
+  crushing: 'Crushing Advantage',
+  advantage: 'Winning Advantage',
+  mateIn1: 'Mate in 1',
+  mateIn2: 'Mate in 2',
+  mateIn3: 'Mate in 3',
+  mateIn4: 'Mate in 4',
+  fork: 'Knight / Double Fork',
+  pin: 'Tactical Pin',
+  skewer: 'Skewer Tactic',
+  sacrifice: 'Tactical Sacrifice',
+  promotion: 'Pawn Promotion'
+};
+
+export function formatPuzzleThemeLabel(rawTheme: string): string {
+  const cleaned = rawTheme.replace(/^Daily Challenge · /, '').trim();
+  if (!cleaned) return 'Daily Tactic';
+  if (PUZZLE_THEME_LABELS[cleaned]) return PUZZLE_THEME_LABELS[cleaned];
+  if (cleaned.includes(' ')) return cleaned;
+  return cleaned
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([a-zA-Z])(\d+)/g, '$1 $2')
+    .replace(/^./, c => c.toUpperCase());
+}
+
 export async function fetchDailyLichessPuzzle(dateKey: string = getTodayLocalDateKey()): Promise<Puzzle> {
   try {
     const res = await fetch('https://lichess.org/api/puzzle/daily');
@@ -503,7 +553,7 @@ export async function fetchDailyLichessPuzzle(dateKey: string = getTodayLocalDat
       if (!m) return getLocalDailyPuzzle(dateKey);
     }
 
-    const primaryTheme = themes[0] || 'Daily Tactic';
+    const primaryTheme = formatPuzzleThemeLabel(themes[0] || 'Daily Tactic');
     const category = normalizePuzzleCategory(themes.join(' '));
     const dailyPuzzle: Puzzle = {
       id: `daily-${dateKey}-${data?.puzzle?.id || Date.now()}`,

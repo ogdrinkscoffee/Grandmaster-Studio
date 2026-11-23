@@ -10,6 +10,7 @@ import {
   OpponentMode
 } from './types/chess';
 import { TrainSection } from './components/TrainView';
+import { LegalTab } from './components/LegalModal';
 import { SearchActionTarget } from './engine/globalSearch';
 import { hasOpenModalDialog, resolveGlobalNavigationShortcut } from './engine/keyboardShortcuts';
 import { warmUpEngine } from './engine/engineClient';
@@ -31,9 +32,21 @@ import { variantToCustomConfig, CUSTOM_ENGINE_VARIANTS } from './engine/customVa
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { getAppTheme, normalizeThemeSettings } from './theme/themes';
 import { ThemeProvider } from './context/ThemeContext';
-import { AppTab, AppViewProps } from './components/AppViewProps';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { auth, testConnection } from './firebase/config';
+import {
+  ensureUserProfiles,
+  subscribePublicProfile,
+  updateCookieConsentInCloud
+} from './services/onlineChessService';
+import { OnlinePlayerPublic } from './engine/onlineClassic';
+import {
+  CookieConsentRecord,
+  loadCookieConsent,
+  saveCookieConsent
+} from './components/CookieConsentBanner';
+import { AppTab, AppViewProps, QuickPlayRequest } from './components/AppViewProps';
 import { DesktopView } from './components/DesktopView';
-import { MobileView } from './components/MobileView';
 
 const DEFAULT_SETTINGS: UserSettings = {
   appTheme: 'emerald_studio',
@@ -182,35 +195,36 @@ const SEED_MATCHES: GameHistoryItem[] = [
 ];
 
 export default function App() {
-  const [isMobile, setIsMobile] = useState<boolean>(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return false;
+  const [pendingChallengeCode, setPendingChallengeCode] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('challenge') || params.get('match');
+      if (code && code.trim()) return code.trim().toUpperCase();
     }
-    return window.matchMedia('(max-width: 767px)').matches;
+    return null;
   });
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return;
+  const [activeTab, setActiveTab] = useState<AppTab>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('autostart') === '1' || params.get('challenge') || params.get('match')) return 'play';
     }
-    const mediaQuery = window.matchMedia('(max-width: 767px)');
-    setIsMobile(mediaQuery.matches);
-    const handleChange = (e: MediaQueryListEvent) => {
-      setIsMobile(e.matches);
-    };
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
-
-  const [activeTab, setActiveTab] = useState<AppTab>('play');
+    return 'home';
+  });
   const [activeVariant, setActiveVariant] = useState<VariantId>('standard');
   const [activeCustomVariant, setActiveCustomVariant] = useState<CustomVariantConfig | null>(null);
   const [variantsSubTab, setVariantsSubTab] = useState<'catalog' | 'custom'>('catalog');
   const [studioSeedConfig, setStudioSeedConfig] = useState<CustomVariantConfig | null>(null);
+  const [quickPlayRequest, setQuickPlayRequest] = useState<QuickPlayRequest | null>(null);
+  const [initialPlayFenRequest, setInitialPlayFenRequest] = useState<{ fen: string; key: number } | null>(null);
   const [trainSectionRequest, setTrainSectionRequest] = useState<{ section: TrainSection; key: number } | undefined>(undefined);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState<boolean>(false);
+  const [isApkModalOpen, setIsApkModalOpen] = useState<boolean>(false);
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState<boolean>(false);
+  const [legalInitialTab, setLegalInitialTab] = useState<LegalTab>('privacy');
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<'customization' | 'gameplay' | 'sync' | undefined>(undefined);
   const [selectedReviewGame, setSelectedReviewGame] = useState<GameHistoryItem | null>(SEED_MATCHES[0]);
   const [recommendedPuzzleTheme, setRecommendedPuzzleTheme] = useState<string | undefined>(undefined);
@@ -222,6 +236,11 @@ export default function App() {
     key: number;
   } | null>(null);
   const isOnline = useOnlineStatus();
+
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [publicProfile, setPublicProfile] = useState<OnlinePlayerPublic | null>(null);
+  const [cookieConsent, setCookieConsent] = useState<CookieConsentRecord | null>(() => loadCookieConsent());
+  const [isCookieBannerOpen, setIsCookieBannerOpen] = useState<boolean>(() => !loadCookieConsent());
 
   const [profile, setProfile] = useState<UserProfile>(() => {
     try {
@@ -281,12 +300,14 @@ export default function App() {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [activeTab]);
 
-  // Clear one-shot bot challenge requests once leaving the Play workspace
+  // Clear one-shot challenge/quick-play/FEN requests once leaving the Play workspace
   useEffect(() => {
-    if (activeTab !== 'play' && botChallengeRequest) {
-      setBotChallengeRequest(null);
+    if (activeTab !== 'play') {
+      if (botChallengeRequest) setBotChallengeRequest(null);
+      if (quickPlayRequest) setQuickPlayRequest(null);
+      if (initialPlayFenRequest) setInitialPlayFenRequest(null);
     }
-  }, [activeTab, botChallengeRequest]);
+  }, [activeTab, botChallengeRequest, quickPlayRequest, initialPlayFenRequest]);
 
   // Seed Dashboard rating animation baseline on first boot so the first earned Elo delta animates on arrival
   useEffect(() => {
@@ -341,6 +362,43 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, []);
 
+  // Verify Firestore connection & subscribe to Firebase Auth + public chess profile
+  useEffect(() => {
+    void testConnection();
+    let unsubProfile: (() => void) | null = null;
+    const unsubAuth = onAuthStateChanged(auth, async user => {
+      setFirebaseUser(user);
+      if (unsubProfile) {
+        unsubProfile();
+        unsubProfile = null;
+      }
+      if (!user) {
+        setPublicProfile(null);
+        return;
+      }
+      try {
+        const ensured = await ensureUserProfiles(user, {
+          cookieConsent: cookieConsent?.choice ?? 'essential',
+          preferredUsername: profile.username
+        });
+        setPublicProfile(ensured);
+      } catch {
+        // fail gracefully cleanly
+      }
+      unsubProfile = subscribePublicProfile(user.uid, nextPub => {
+        if (nextPub) {
+          setPublicProfile(nextPub);
+        }
+      });
+    });
+
+    return () => {
+      unsubAuth();
+      if (unsubProfile) unsubProfile();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('gm_chess_profile', JSON.stringify(profile));
@@ -354,16 +412,28 @@ export default function App() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const action = resolveGlobalNavigationShortcut(e, {
-        modalOpen: isSettingsOpen || isShortcutsOpen || hasOpenModalDialog()
+        modalOpen: isSettingsOpen || isShortcutsOpen || isApkModalOpen || isLegalModalOpen || isAuthModalOpen || hasOpenModalDialog()
       });
       if (!action) return;
 
       if (action.type === 'toggle_shortcuts') {
         e.preventDefault();
         setIsSettingsOpen(false);
+        setIsApkModalOpen(false);
+        setIsLegalModalOpen(false);
+        setIsAuthModalOpen(false);
         setIsShortcutsOpen(prev => !prev);
       } else if (action.type === 'close_modal') {
-        if (isShortcutsOpen) {
+        if (isAuthModalOpen) {
+          e.preventDefault();
+          setIsAuthModalOpen(false);
+        } else if (isLegalModalOpen) {
+          e.preventDefault();
+          setIsLegalModalOpen(false);
+        } else if (isApkModalOpen) {
+          e.preventDefault();
+          setIsApkModalOpen(false);
+        } else if (isShortcutsOpen) {
           e.preventDefault();
           setIsShortcutsOpen(false);
         } else if (isSettingsOpen) {
@@ -392,7 +462,7 @@ export default function App() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isSettingsOpen, isShortcutsOpen]);
+  }, [isSettingsOpen, isShortcutsOpen, isApkModalOpen, isLegalModalOpen, isAuthModalOpen]);
 
   // ---- Achievements: derived from games, stats and training progress ----
   const [progressTick, setProgressTick] = useState(0);
@@ -586,6 +656,60 @@ export default function App() {
     setActiveTab('review');
   };
 
+  const handleSelectCookieConsent = useCallback(
+    (choice: 'all' | 'essential') => {
+      const record: CookieConsentRecord = {
+        choice,
+        functionalStorage: true,
+        onlineFeatures: choice === 'all',
+        updatedAt: new Date().toISOString()
+      };
+      saveCookieConsent(record);
+      setCookieConsent(record);
+      setIsCookieBannerOpen(false);
+      if (firebaseUser) {
+        void updateCookieConsentInCloud(firebaseUser.uid, choice).catch(() => {});
+      }
+    },
+    [firebaseUser]
+  );
+
+  const handleOnlineEloUpdated = useCallback((bucket: 'bullet' | 'blitz' | 'rapid', newElo: number) => {
+    const today = new Date().toISOString().split('T')[0];
+    setProfile(prev => ({
+      ...prev,
+      ratings: {
+        ...prev.ratings,
+        [bucket]: newElo
+      },
+      ratingHistory: {
+        ...prev.ratingHistory,
+        [bucket]: [...(prev.ratingHistory[bucket] || []), { date: today, elo: newElo }]
+      },
+      stats: {
+        ...prev.stats,
+        highestRating: Math.max(prev.stats.highestRating, newElo)
+      }
+    }));
+  }, []);
+
+  const handleAccountDeleted = useCallback(() => {
+    setFirebaseUser(null);
+    setPublicProfile(null);
+  }, []);
+
+  const handleConsumeChallengeCode = useCallback(() => {
+    setPendingChallengeCode(null);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('challenge') || url.searchParams.has('match')) {
+        url.searchParams.delete('challenge');
+        url.searchParams.delete('match');
+        window.history.replaceState({}, '', url.pathname + url.search);
+      }
+    }
+  }, []);
+
   const handleGlobalHelpAction = (target: SearchActionTarget) => {
     if (target.type === 'shortcuts') {
       setIsShortcutsOpen(true);
@@ -624,7 +748,34 @@ export default function App() {
       onSelectVariantToPlay: handleSelectVariantToPlay,
       onPlayCustomInArena: handlePlayCustomInArena,
       onEditVariantRules: handleEditVariantRules,
+      quickPlayRequest,
+      onQuickPlay: (req) => {
+        const nextVariant = req.variant || 'standard';
+        setActiveVariant(nextVariant);
+        if (CUSTOM_ENGINE_VARIANTS.includes(nextVariant)) {
+          setActiveCustomVariant(variantToCustomConfig(nextVariant));
+        } else {
+          setActiveCustomVariant(null);
+        }
+        setQuickPlayRequest(prev => ({
+          ...req,
+          variant: nextVariant,
+          key: (prev?.key ?? 0) + 1
+        }));
+        setActiveTab('play');
+      },
+      initialPlayFenRequest,
+      onPlayFromFen: (fen: string) => {
+        setActiveVariant('standard');
+        setActiveCustomVariant(null);
+        setInitialPlayFenRequest(prev => ({ fen, key: (prev?.key ?? 0) + 1 }));
+        setActiveTab('play');
+      },
       trainSectionRequest,
+      onOpenTrainSection: (section) => {
+        setTrainSectionRequest(prev => ({ section, key: (prev?.key ?? 0) + 1 }));
+        setActiveTab('train');
+      },
       onOpenVisionTrainer: () => {
         setTrainSectionRequest(prev => ({ section: 'vision', key: (prev?.key ?? 0) + 1 }));
         setActiveTab('train');
@@ -658,7 +809,6 @@ export default function App() {
       isLightMode,
       displayHeaderRapidElo,
       isOnline,
-      isMobile,
       achievementStatuses,
       activeToast: toastQueue[0] ?? null,
       onDismissToast: dismissToast,
@@ -672,6 +822,31 @@ export default function App() {
       isShortcutsOpen,
       onOpenShortcuts: () => setIsShortcutsOpen(true),
       onCloseShortcuts: () => setIsShortcutsOpen(false),
+      isApkModalOpen,
+      onOpenApkModal: () => setIsApkModalOpen(true),
+      onCloseApkModal: () => setIsApkModalOpen(false),
+      isLegalModalOpen,
+      legalInitialTab,
+      onOpenLegalModal: (tab = 'privacy') => {
+        setLegalInitialTab(tab);
+        setIsLegalModalOpen(true);
+      },
+      onCloseLegalModal: () => setIsLegalModalOpen(false),
+      firebaseUser,
+      publicProfile,
+      isAuthModalOpen,
+      onOpenAuthModal: () => setIsAuthModalOpen(true),
+      onCloseAuthModal: () => setIsAuthModalOpen(false),
+      onPublicProfileUpdated: setPublicProfile,
+      onAccountDeleted: handleAccountDeleted,
+      pendingChallengeCode,
+      onConsumeChallengeCode: handleConsumeChallengeCode,
+      onOnlineEloUpdated: handleOnlineEloUpdated,
+      cookieConsent,
+      isCookieBannerOpen,
+      onSelectCookieConsent: handleSelectCookieConsent,
+      onReopenCookieBanner: () => setIsCookieBannerOpen(true),
+      onCloseCookieBanner: () => setIsCookieBannerOpen(false),
       onSaveGame: handleSaveGame,
       onRunGameReview: handleRunGameReview,
       onImportGame: handleImportGame,
@@ -715,7 +890,7 @@ export default function App() {
 
   return (
     <ThemeProvider settings={profile.settings}>
-      {isMobile ? <MobileView {...viewProps} /> : <DesktopView {...viewProps} />}
+      <DesktopView {...viewProps} />
     </ThemeProvider>
   );
 }

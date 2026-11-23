@@ -1154,3 +1154,201 @@ test('resolveAdaptiveBot dials difficulty down on slumps/deficits and up on hot 
   const forcedHard = resolveAdaptiveBot({ playerRapidElo: 1450, recentGames: [], posture: 'hard' });
   assert.ok(forcedEasy.effectiveElo < forcedHard.effectiveElo);
 });
+
+test('fenEditor converts, edits, sanitizes castling, and validates FEN positions cleanly', async () => {
+  const {
+    fenToGridState,
+    gridStateToFen,
+    sanitizeCastlingForGrid,
+    setSquarePieceInGrid,
+    validateEditedPosition
+  } = await import('./fenEditor');
+
+  const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+  const parsed = fenToGridState(startFen);
+  assert.equal(parsed.turn, 'w');
+  assert.deepEqual(parsed.castling, { K: true, Q: true, k: true, q: true });
+  assert.equal(gridStateToFen(parsed), startFen);
+  assert.equal(validateEditedPosition(startFen).valid, true);
+
+  // Removing White's h1 rook (row 7, col 7) must strip White kingside 'K' castling right automatically
+  const noH1Grid = setSquarePieceInGrid(parsed.grid, 7, 7, null);
+  const noH1State = {
+    ...parsed,
+    grid: noH1Grid,
+    castling: sanitizeCastlingForGrid(noH1Grid, parsed.castling)
+  };
+  assert.equal(noH1State.castling.K, false);
+  assert.equal(noH1State.castling.Q, true);
+  assert.equal(validateEditedPosition(gridStateToFen(noH1State)).valid, true);
+
+  // Removing White King makes position invalid
+  const noWhiteKingGrid = setSquarePieceInGrid(parsed.grid, 7, 4, null);
+  const missingKingRes = validateEditedPosition(
+    gridStateToFen({ ...parsed, grid: noWhiteKingGrid })
+  );
+  assert.equal(missingKingRes.valid, false);
+  assert.ok(missingKingRes.errors.some(err => err.toLowerCase().includes('king')));
+
+  // Pawn on rank 8 (row 0) makes position invalid
+  const baseKings = fenToGridState('4k3/8/8/8/8/8/8/4K3 w - - 0 1');
+  const pawnOn8Grid = setSquarePieceInGrid(baseKings.grid, 0, 0, {
+    type: 'p',
+    color: 'w'
+  });
+  const pawnErr = validateEditedPosition(
+    gridStateToFen({ ...baseKings, grid: pawnOn8Grid })
+  );
+  assert.equal(pawnErr.valid, false);
+  assert.ok(pawnErr.errors.some(err => err.toLowerCase().includes('pawn')));
+});
+
+test('getOpeningContinuations returns valid ECO continuations and normalized W/D/B percentages', async () => {
+  const { getOpeningContinuations } = await import('./openings');
+
+  const initial = getOpeningContinuations([]);
+  assert.ok(initial.length >= 4);
+  const sans = initial.map(c => c.san);
+  assert.ok(sans.includes('e4') && sans.includes('d4') && sans.includes('c4') && sans.includes('Nf3'));
+  for (const item of initial) {
+    assert.equal(item.whitePct + item.drawPct + item.blackPct, 100);
+    assert.ok(item.sampleGames > 0);
+  }
+
+  const afterE4 = getOpeningContinuations(['e4']);
+  const e4Replies = afterE4.map(c => c.san);
+  assert.ok(e4Replies.includes('e5') && e4Replies.includes('c5') && e4Replies.includes('e6'));
+  for (const item of afterE4) {
+    assert.equal(item.whitePct + item.drawPct + item.blackPct, 100);
+  }
+});
+
+test('resolvePlayViewShortcut recognizes z for Zen Focus Mode', async () => {
+  const { resolvePlayViewShortcut, KEYBOARD_SHORTCUTS } = await import('./keyboardShortcuts');
+  assert.deepEqual(
+    resolvePlayViewShortcut({ key: 'z' }, { keyboardControl: false, hasMoves: false, modalOpen: false }),
+    { type: 'toggle_zen' }
+  );
+  assert.ok(KEYBOARD_SHORTCUTS.some(item => item.id === 'play-zen' && item.keys.includes('Z')));
+});
+
+test('buildAnyOnlineTimeControl supports any timestamp including sub-minute, multi-hour classical, and unlimited', async () => {
+  const { buildAnyOnlineTimeControl, formatOnlineClock, getEloBucketForTimeControl } = await import('./onlineClassic');
+
+  const ultraBullet = buildAnyOnlineTimeControl(0.25, 0, false);
+  assert.equal(ultraBullet.type, 'bullet');
+  assert.equal(ultraBullet.baseSeconds, 15);
+  assert.equal(getEloBucketForTimeControl(ultraBullet.type), 'bulletElo');
+
+  const blitz = buildAnyOnlineTimeControl(3, 2, false);
+  assert.equal(blitz.type, 'blitz');
+  assert.equal(blitz.baseSeconds, 180);
+  assert.equal(blitz.incrementSeconds, 2);
+  assert.equal(getEloBucketForTimeControl(blitz.type), 'blitzElo');
+
+  const rapid = buildAnyOnlineTimeControl(10, 5, false);
+  assert.equal(rapid.type, 'rapid');
+  assert.equal(rapid.baseSeconds, 600);
+  assert.equal(getEloBucketForTimeControl(rapid.type), 'rapidElo');
+
+  const classical = buildAnyOnlineTimeControl(90, 30, false);
+  assert.equal(classical.type, 'classical');
+  assert.equal(classical.baseSeconds, 5400);
+  assert.equal(getEloBucketForTimeControl(classical.type), 'classicalElo');
+
+  const unlimited = buildAnyOnlineTimeControl(0, 0, true);
+  assert.equal(unlimited.type, 'unlimited');
+  assert.equal(unlimited.isUnlimited, true);
+  assert.equal(formatOnlineClock(0, true), '∞');
+  assert.equal(formatOnlineClock(9500, false), '0:09.5');
+  assert.equal(formatOnlineClock(3661000, false), '1:01:01');
+});
+
+test('computeClassicOnlineMove enforces standard rules, turn lock, clock increment, checkmate, and Elo deltas', async () => {
+  const { computeClassicOnlineMove, computeLiveClockMs, computeOnlineEloDelta, sanitizeOnlineUsername } = await import('./onlineClassic');
+
+  const baseMatch = {
+    matchId: 'm-test',
+    inviteCode: 'TEST99',
+    variant: 'standard' as const,
+    isPublicSeek: true,
+    rated: true,
+    status: 'active' as const,
+    creatorId: 'u1',
+    creatorColorPref: 'w' as const,
+    whiteUid: 'u1',
+    blackUid: 'u2',
+    whiteName: 'WhitePlayer',
+    blackName: 'BlackPlayer',
+    whiteElo: 1200,
+    blackElo: 1200,
+    timeControlType: 'blitz' as const,
+    timeControlLabel: '3+2 Blitz',
+    baseSeconds: 180,
+    incrementSeconds: 2,
+    isUnlimited: false,
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+    pgn: '',
+    lastMoveUci: '',
+    lastMoveSan: '',
+    movesCount: 0,
+    turn: 'w' as const,
+    whiteTimeMs: 180_000,
+    blackTimeMs: 180_000,
+    drawOfferBy: '' as const,
+    takebackOfferBy: '' as const,
+    winner: '' as const,
+    result: '*' as const,
+    reason: 'none' as const,
+    rematchMatchId: '',
+    createdAtMs: 1_000_000,
+    lastMoveAtMs: 1_000_000,
+    updatedAtMs: 1_000_000
+  };
+
+  // Black cannot move on White's turn
+  assert.equal(computeClassicOnlineMove(baseMatch, 'b', 'e7', 'e5', 'q', 1_001_000), null);
+
+  // White legal opening e4 updates turn, movesCount, and awards increment
+  const m1 = computeClassicOnlineMove(baseMatch, 'w', 'e2', 'e4', 'q', 1_001_000);
+  assert.ok(m1);
+  assert.equal(m1.lastMoveSan, 'e4');
+  assert.equal(m1.turn, 'b');
+  assert.equal(m1.movesCount, 1);
+  assert.equal(m1.whiteTimeMs, 182_000);
+
+  // Elapsed clock check & flag detection after ply >= 1
+  const secondTurnMatch = {
+    ...baseMatch,
+    ...m1,
+    blackTimeMs: 5_000,
+    lastMoveAtMs: 2_000_000
+  };
+  const flaggedClock = computeLiveClockMs(secondTurnMatch, 2_006_000);
+  assert.equal(flaggedClock.blackMs, 0);
+  assert.equal(flaggedClock.activeFlagged, 'b');
+  // Black cannot move once flagged
+  assert.equal(computeClassicOnlineMove(secondTurnMatch, 'b', 'e7', 'e5', 'q', 2_006_000), null);
+
+  // Mate-in-1 detection (Fool's Mate)
+  const foolsSetup = {
+    ...baseMatch,
+    fen: 'rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq - 0 2',
+    pgn: '1. f3 e5 2. g4',
+    movesCount: 3,
+    turn: 'b' as const,
+    lastMoveAtMs: 3_000_000
+  };
+  const mateTransition = computeClassicOnlineMove(foolsSetup, 'b', 'd8', 'h4', 'q', 3_001_500);
+  assert.ok(mateTransition);
+  assert.equal(mateTransition.status, 'finished');
+  assert.equal(mateTransition.winner, 'b');
+  assert.equal(mateTransition.result, '0-1');
+  assert.equal(mateTransition.reason, 'checkmate');
+
+  // Elo & sanitization checks
+  assert.equal(computeOnlineEloDelta(1200, 1200, 1), 12);
+  assert.equal(computeOnlineEloDelta(1200, 1200, 0.5), 0);
+  assert.equal(sanitizeOnlineUsername('<script>alert(1)</script> GM'), 'scriptalert1script GM');
+});
+

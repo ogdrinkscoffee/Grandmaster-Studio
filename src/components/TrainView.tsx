@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Crosshair, Crown, GraduationCap, Microscope } from 'lucide-react';
+import { BookOpen, Crosshair, Crown, GraduationCap, Microscope, PenTool } from 'lucide-react';
 import { useAppTheme } from '../context/ThemeContext';
 import { OpeningTrainer } from './OpeningTrainer';
 import { EndgameDrills } from './EndgameDrills';
 import { AnalysisBoard } from './AnalysisBoard';
 import { VisionTrainer } from './VisionTrainer';
+import { PositionEditor } from './PositionEditor';
 
-export type TrainSection = 'openings' | 'endgames' | 'vision' | 'analysis';
+export type TrainSection = 'openings' | 'endgames' | 'vision' | 'analysis' | 'editor';
 
 interface TrainViewProps {
   initialSection?: TrainSection;
   sectionRequestKey?: number;
+  onPlayFromFen?: (fen: string) => void;
 }
 
 const SECTIONS: { id: TrainSection; label: string; icon: React.ReactNode; blurb: string }[] = [
@@ -34,16 +36,23 @@ const SECTIONS: { id: TrainSection; label: string; icon: React.ReactNode; blurb:
   },
   {
     id: 'analysis',
-    label: 'Analysis board',
+    label: 'Analysis',
     icon: <Microscope className="w-4 h-4" />,
-    blurb: 'Play both sides freely, load any FEN or PGN, and see live engine lines.'
+    blurb: 'Play both sides freely, browse the Opening Explorer, load any FEN/PGN, and see live engine lines.'
+  },
+  {
+    id: 'editor',
+    label: 'Board Editor',
+    icon: <PenTool className="w-4 h-4" />,
+    blurb: 'Arrange custom pieces, configure castling & turn, and jump straight to Analysis or Play vs Engine.'
   }
 ];
 
-/** Training hub: opening trainer, endgame drills, coordinate vision, and a free analysis board. */
-export const TrainView: React.FC<TrainViewProps> = ({ initialSection, sectionRequestKey }) => {
+/** Training hub: opening trainer, endgame drills, coordinate vision, free analysis board, and board editor. */
+export const TrainView: React.FC<TrainViewProps> = ({ initialSection, sectionRequestKey, onPlayFromFen }) => {
   const { theme } = useAppTheme();
   const [section, setSection] = useState<TrainSection>(initialSection ?? 'openings');
+  const [analysisFenRequest, setAnalysisFenRequest] = useState<{ fen: string; key: number } | null>(null);
 
   useEffect(() => {
     if (initialSection) {
@@ -92,7 +101,7 @@ export const TrainView: React.FC<TrainViewProps> = ({ initialSection, sectionReq
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => setSection(s.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap"
                   style={isActive ? { backgroundColor: theme.accentHex, color: theme.accentTextHex } : { color: theme.textSecondary }}
                 >
                   {s.icon}
@@ -107,7 +116,21 @@ export const TrainView: React.FC<TrainViewProps> = ({ initialSection, sectionReq
       {section === 'openings' && <OpeningTrainer />}
       {section === 'endgames' && <EndgameDrills />}
       {section === 'vision' && <VisionTrainer />}
-      {section === 'analysis' && <AnalysisBoard />}
+      {section === 'analysis' && (
+        <AnalysisBoard
+          initialFenRequest={analysisFenRequest}
+          onPlayFromFen={onPlayFromFen}
+        />
+      )}
+      {section === 'editor' && (
+        <PositionEditor
+          onAnalyzeFen={fen => {
+            setAnalysisFenRequest(prev => ({ fen, key: (prev?.key ?? 0) + 1 }));
+            setSection('analysis');
+          }}
+          onPlayFromFen={onPlayFromFen}
+        />
+      )}
     </div>
   );
 };

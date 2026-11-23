@@ -327,15 +327,15 @@ export const VariantsView: React.FC<VariantsViewProps> = ({
                       {variant.description}
                     </p>
 
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1.5">
                       {variant.specialRules.slice(0, 2).map((rule, idx) => (
                         <div
                           key={idx}
-                          className="text-[11px] flex items-center gap-1.5 truncate"
+                          className="text-[11px] flex items-start gap-1.5 leading-snug"
                           style={{ color: theme.textMutedHex }}
                         >
-                          <span style={{ color: theme.accentHex }}>·</span>
-                          <span className="truncate">{rule}</span>
+                          <span className="shrink-0" style={{ color: theme.accentHex }}>·</span>
+                          <span className="line-clamp-2">{rule}</span>
                         </div>
                       ))}
                     </div>

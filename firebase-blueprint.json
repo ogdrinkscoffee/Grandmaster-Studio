@@ -1,0 +1,381 @@
+{
+  "entities": {
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Owner-only private account metadata including Google email, mandatory age confirmation, legal consent timestamps, and cookie consent.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "ageConfirmed": {
+          "type": "boolean"
+        },
+        "cookieConsent": {
+          "type": "string",
+          "enum": ["all", "essential"]
+        },
+        "subscriptionTier": {
+          "type": "string",
+          "enum": ["free"]
+        },
+        "acceptedTermsAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid",
+        "email",
+        "ageConfirmed",
+        "cookieConsent",
+        "subscriptionTier",
+        "acceptedTermsAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PlayerPublic": {
+      "title": "PlayerPublic",
+      "description": "Publicly visible chess identity and online Classic Elo ratings without any PII (no email/phone/address).",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_ .\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 8
+        },
+        "avatarSeed": {
+          "type": "string",
+          "maxLength": 16
+        },
+        "bulletElo": {
+          "type": "number"
+        },
+        "blitzElo": {
+          "type": "number"
+        },
+        "rapidElo": {
+          "type": "number"
+        },
+        "classicalElo": {
+          "type": "number"
+        },
+        "onlineGames": {
+          "type": "number"
+        },
+        "onlineWins": {
+          "type": "number"
+        },
+        "onlineDraws": {
+          "type": "number"
+        },
+        "onlineLosses": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid",
+        "username",
+        "title",
+        "avatarSeed",
+        "bulletElo",
+        "blitzElo",
+        "rapidElo",
+        "classicalElo",
+        "onlineGames",
+        "onlineWins",
+        "onlineDraws",
+        "onlineLosses",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "OnlineMatch": {
+      "title": "OnlineMatch",
+      "description": "Real-time online Classic Chess match supporting any custom or preset time control with server-synced move timestamps.",
+      "type": "object",
+      "properties": {
+        "matchId": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "inviteCode": {
+          "type": "string",
+          "maxLength": 12,
+          "pattern": "^[A-Z0-9]{6,12}$"
+        },
+        "variant": {
+          "type": "string",
+          "enum": ["standard"]
+        },
+        "isPublicSeek": {
+          "type": "boolean"
+        },
+        "rated": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["waiting", "active", "finished", "cancelled"]
+        },
+        "creatorId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "creatorColorPref": {
+          "type": "string",
+          "enum": ["w", "b", "random"]
+        },
+        "whiteUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "blackUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "whiteName": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "blackName": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "whiteElo": {
+          "type": "number"
+        },
+        "blackElo": {
+          "type": "number"
+        },
+        "timeControlType": {
+          "type": "string",
+          "enum": ["bullet", "blitz", "rapid", "classical", "unlimited", "custom"]
+        },
+        "timeControlLabel": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "baseSeconds": {
+          "type": "number"
+        },
+        "incrementSeconds": {
+          "type": "number"
+        },
+        "isUnlimited": {
+          "type": "boolean"
+        },
+        "fen": {
+          "type": "string",
+          "maxLength": 140
+        },
+        "pgn": {
+          "type": "string",
+          "maxLength": 16000
+        },
+        "lastMoveUci": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "lastMoveSan": {
+          "type": "string",
+          "maxLength": 16
+        },
+        "movesCount": {
+          "type": "number"
+        },
+        "turn": {
+          "type": "string",
+          "enum": ["w", "b"]
+        },
+        "whiteTimeMs": {
+          "type": "number"
+        },
+        "blackTimeMs": {
+          "type": "number"
+        },
+        "drawOfferBy": {
+          "type": "string",
+          "enum": ["", "w", "b"]
+        },
+        "takebackOfferBy": {
+          "type": "string",
+          "enum": ["", "w", "b"]
+        },
+        "winner": {
+          "type": "string",
+          "enum": ["", "w", "b", "draw"]
+        },
+        "result": {
+          "type": "string",
+          "enum": ["*", "1-0", "0-1", "1/2-1/2"]
+        },
+        "reason": {
+          "type": "string",
+          "enum": ["none", "checkmate", "resignation", "timeout", "stalemate", "draw_agreement", "repetition", "insufficient", "cancelled"]
+        },
+        "rematchMatchId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lastMoveAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "matchId",
+        "inviteCode",
+        "variant",
+        "isPublicSeek",
+        "rated",
+        "status",
+        "creatorId",
+        "creatorColorPref",
+        "whiteUid",
+        "blackUid",
+        "whiteName",
+        "blackName",
+        "whiteElo",
+        "blackElo",
+        "timeControlType",
+        "timeControlLabel",
+        "baseSeconds",
+        "incrementSeconds",
+        "isUnlimited",
+        "fen",
+        "pgn",
+        "lastMoveUci",
+        "lastMoveSan",
+        "movesCount",
+        "turn",
+        "whiteTimeMs",
+        "blackTimeMs",
+        "drawOfferBy",
+        "takebackOfferBy",
+        "winner",
+        "result",
+        "reason",
+        "rematchMatchId",
+        "createdAt",
+        "lastMoveAt",
+        "updatedAt"
+      ]
+    },
+    "OnlineChatMessage": {
+      "title": "OnlineChatMessage",
+      "description": "Sportsmanship chat messages belonging to a specific online Classic Chess match.",
+      "type": "object",
+      "properties": {
+        "messageId": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "matchId": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderUid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderName": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "whiteUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "blackUid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "messageId",
+        "matchId",
+        "senderUid",
+        "senderName",
+        "whiteUid",
+        "blackUid",
+        "text",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/usersPrivate/{userId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Owner-only private user account records, email, mandatory age confirmation, and consent timestamps."
+    },
+    "/playersPublic/{userId}": {
+      "schema": { "$ref": "#/entities/PlayerPublic" },
+      "description": "Public non-PII player cards and Online Classic Elo leaderboard."
+    },
+    "/onlineMatches/{matchId}": {
+      "schema": { "$ref": "#/entities/OnlineMatch" },
+      "description": "Real-time Classic Chess online rooms supporting any custom or preset time control."
+    },
+    "/onlineMatches/{matchId}/chat/{messageId}": {
+      "schema": { "$ref": "#/entities/OnlineChatMessage" },
+      "description": "Per-match sportsmanship chat scoped strictly to match participants."
+    }
+  }
+}

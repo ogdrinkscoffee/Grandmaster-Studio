@@ -40,52 +40,52 @@ export const EvalBar: React.FC<EvalBarProps> = ({
     const whiteSectionFg = isFlipped ? blackSection.fg : whiteSection.fg;
     const blackSectionBg = isFlipped ? whiteSection.bg : blackSection.bg;
     const blackSectionFg = isFlipped ? whiteSection.fg : blackSection.fg;
+    const leftShowsScore = isFlipped ? blackSection.showText : whiteSection.showText;
+    const rightShowsScore = isFlipped ? whiteSection.showText : blackSection.showText;
 
     return (
       <div
-        className="flex flex-row items-center justify-between self-stretch min-h-[32px] w-full rounded-lg overflow-hidden relative select-none shrink-0"
+        className="flex flex-row items-stretch h-7 w-full rounded-lg overflow-hidden relative select-none shrink-0"
         style={{
           border: `1px solid ${theme.cardBorderHex}`,
           backgroundColor: '#1a1f29',
-          boxShadow: '0 8px 20px rgba(0, 0, 0, 0.22)'
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.18)'
         }}
         title={`Engine Evaluation: ${evalText} (White win chance: ${whiteWinChance}%)`}
         aria-label={`Evaluation bar: ${evalText}`}
       >
-        {/* White section (left) */}
+        {/* Left section */}
         <div
-          className="h-full transition-[width] duration-300 ease-out flex flex-col justify-start items-center pt-0.5 text-[10px] font-bold font-mono tabular-nums"
+          className="h-full transition-[width] duration-300 ease-out flex items-center justify-start pl-2.5 text-[11px] font-bold font-mono tabular-nums"
           style={{
-            width: `${whiteWidthPercent}%`,
+            width: `${isFlipped ? blackWidthPercent : whiteWidthPercent}%`,
             backgroundColor: whiteSectionBg,
             color: whiteSectionFg
           }}
         >
-          {whiteSection.showText && (
-            <span className="px-0.5 tracking-tight">{evalText}</span>
+          {leftShowsScore && (
+            <span className="tracking-tight whitespace-nowrap">{evalText}</span>
           )}
         </div>
 
-        {/* Black section (right) */}
+        {/* Right section */}
         <div
-          className="h-full transition-[width] duration-300 ease-out flex flex-col justify-end items-center pb-0.5 text-[10px] font-bold font-mono tabular-nums"
+          className="h-full transition-[width] duration-300 ease-out flex items-center justify-end pr-12 text-[11px] font-bold font-mono tabular-nums"
           style={{
-            width: `${blackWidthPercent}%`,
+            width: `${isFlipped ? whiteWidthPercent : blackWidthPercent}%`,
             backgroundColor: blackSectionBg,
             color: blackSectionFg
           }}
         >
-          {blackSection.showText && (
-            <span className="px-0.5 tracking-tight">{evalText}</span>
+          {rightShowsScore && (
+            <span className="tracking-tight whitespace-nowrap">{evalText}</span>
           )}
         </div>
 
-        {/* Centered hairline + depth indicator */}
-        <div
-          className="absolute top-1/2 left-0 right-0 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center"
-        >
+        {/* Right-aligned depth badge */}
+        <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none z-10">
           <div
-            className="text-[8px] font-mono font-bold px-1 py-0.5 rounded uppercase tracking-tighter whitespace-nowrap shadow-sm"
+            className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-tight whitespace-nowrap"
             style={{
               backgroundColor: theme.cardHex,
               color: theme.accentHex,

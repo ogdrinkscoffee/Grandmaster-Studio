@@ -3,6 +3,7 @@ import { Chess, Square } from 'chess.js';
 import { hasOpenModalDialog, isEditableEventTarget } from '../engine/keyboardShortcuts';
 import {
   ArrowUpDown,
+  BookOpen,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -13,6 +14,7 @@ import {
   RotateCcw,
   SkipBack,
   SkipForward,
+  Swords,
   Zap
 } from 'lucide-react';
 import { ChessBoard, getBoardMaxWidthPx } from './ChessBoard';
@@ -21,7 +23,7 @@ import { useAppTheme } from '../context/ThemeContext';
 import { sounds } from '../utils/sound';
 import { EngineLine, formatEvaluation } from '../engine/chessEngine';
 import { engineTopLines } from '../engine/engineClient';
-import { detectOpening } from '../engine/openings';
+import { detectOpening, getOpeningContinuations } from '../engine/openings';
 
 interface PlayedMove {
   from: string;
@@ -63,8 +65,13 @@ function gameOverText(board: Chess): string | null {
   return null;
 }
 
-/** Free analysis board: play both sides, step through moves, and see live engine lines + eval. */
-export const AnalysisBoard: React.FC = () => {
+interface AnalysisBoardProps {
+  initialFenRequest?: { fen: string; key: number } | null;
+  onPlayFromFen?: (fen: string) => void;
+}
+
+/** Free analysis board: play both sides, step through moves, explore opening book, and see live engine lines + eval. */
+export const AnalysisBoard: React.FC<AnalysisBoardProps> = ({ initialFenRequest = null, onPlayFromFen }) => {
   const { theme, settings } = useAppTheme();
   const [startFen, setStartFen] = useState(START_FEN);
   const [moves, setMoves] = useState<PlayedMove[]>([]);
@@ -85,6 +92,16 @@ export const AnalysisBoard: React.FC = () => {
     () => (startFen === START_FEN ? detectOpening(moves.slice(0, cursor).map(m => m.san)) : null),
     [startFen, moves, cursor]
   );
+  const openingContinuations = useMemo(
+    () => (startFen === START_FEN ? getOpeningContinuations(moves.slice(0, cursor).map(m => m.san)) : []),
+    [startFen, moves, cursor]
+  );
+
+  useEffect(() => {
+    if (!initialFenRequest) return;
+    loadPosition(initialFenRequest.fen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFenRequest]);
 
   // Analyse every new position in the engine worker (debounced so stepping through moves stays snappy)
   useEffect(() => {
@@ -347,17 +364,101 @@ export const AnalysisBoard: React.FC = () => {
             })
           )}
 
-          <button
-            type="button"
-            disabled={!activeLine || isAnalyzing}
-            onClick={() => activeLine && applyMove({ from: activeLine.from, to: activeLine.to, promotion: activeLine.promotion })}
-            className="inline-flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition hover:opacity-90 disabled:opacity-40"
-            style={{ backgroundColor: theme.accentHex, color: theme.accentTextHex }}
-          >
-            <Zap className="w-3.5 h-3.5" />
-            Play {activeLine ? activeLine.san : 'engine move'}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!activeLine || isAnalyzing}
+              onClick={() => activeLine && applyMove({ from: activeLine.from, to: activeLine.to, promotion: activeLine.promotion })}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition hover:opacity-90 disabled:opacity-40 cursor-pointer"
+              style={{ backgroundColor: theme.accentHex, color: theme.accentTextHex }}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              Play {activeLine ? activeLine.san : 'engine move'}
+            </button>
+            {onPlayFromFen && (
+              <button
+                type="button"
+                onClick={() => onPlayFromFen(fen)}
+                className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-xs font-bold transition hover:opacity-85 cursor-pointer whitespace-nowrap"
+                style={{
+                  backgroundColor: theme.cardSecondaryHex,
+                  borderColor: theme.cardBorderHex,
+                  color: theme.textPrimary
+                }}
+              >
+                <Swords className="w-3.5 h-3.5" style={{ color: theme.accentHex }} />
+                <span>Play vs Engine</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Lichess-style Opening Explorer */}
+        {startFen === START_FEN && (
+          <div className="rounded-xl p-4 flex flex-col gap-2.5" style={{ backgroundColor: theme.cardHex, border: `1px solid ${theme.cardBorderHex}` }}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider" style={{ color: theme.textSecondary }}>
+                <BookOpen className="w-4 h-4" style={{ color: theme.accentHex }} />
+                Opening Explorer
+              </span>
+              {opening && (
+                <span className="font-mono text-[11px] font-bold truncate max-w-[180px]" style={{ color: theme.accentHex }}>
+                  {opening.eco}
+                </span>
+              )}
+            </div>
+
+            {openingContinuations.length === 0 ? (
+              <div className="text-xs py-1.5" style={{ color: theme.textMutedHex }}>
+                Out of curated book lines — rely on Stockfish candidate lines above.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+                {openingContinuations.map(cont => (
+                  <button
+                    key={cont.san}
+                    type="button"
+                    onClick={() => {
+                      try {
+                        const m = new Chess(fen).move(cont.san);
+                        if (m) applyMove({ from: m.from, to: m.to, promotion: m.promotion });
+                      } catch {
+                        /* ignore */
+                      }
+                    }}
+                    className="flex items-center justify-between gap-2.5 px-2.5 py-1.5 rounded-lg border text-left transition hover:opacity-90 cursor-pointer"
+                    style={{ backgroundColor: theme.cardSecondaryHex, borderColor: theme.cardBorderHex }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-xs" style={{ color: theme.textPrimary }}>
+                          {cont.san}
+                        </span>
+                        <span className="text-[11px] truncate" style={{ color: theme.textMutedHex }}>
+                          {cont.openingName}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-mono text-[10px] tabular-nums hidden sm:inline" style={{ color: theme.textMutedHex }}>
+                        {(cont.sampleGames / 1000).toFixed(1)}k
+                      </span>
+                      <div
+                        className="w-24 h-2.5 rounded-sm overflow-hidden flex text-[8px] font-bold border"
+                        style={{ borderColor: theme.cardBorderHex }}
+                        title={`White ${cont.whitePct}% · Draw ${cont.drawPct}% · Black ${cont.blackPct}%`}
+                      >
+                        <div style={{ width: `${cont.whitePct}%`, backgroundColor: '#f8fafc' }} />
+                        <div style={{ width: `${cont.drawPct}%`, backgroundColor: '#64748b' }} />
+                        <div style={{ width: `${cont.blackPct}%`, backgroundColor: '#0f172a' }} />
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Moves */}
         <div className="rounded-xl p-4 flex flex-col gap-2" style={{ backgroundColor: theme.cardHex, border: `1px solid ${theme.cardBorderHex}` }}>

@@ -37,8 +37,15 @@ import {
   Wand2,
   User,
   RotateCcw,
-  AlertTriangle
+  AlertTriangle,
+  Globe,
+  UserCheck,
+  Cookie,
+  Receipt
 } from 'lucide-react';
+import { User as FirebaseUser } from 'firebase/auth';
+import { OnlinePlayerPublic } from '../engine/onlineClassic';
+import { LegalTab } from './LegalModal';
 import { useAppTheme } from '../context/ThemeContext';
 
 interface SettingsModalProps {
@@ -52,7 +59,11 @@ interface SettingsModalProps {
   onUpdateProfile?: (patch: { username?: string; title?: string }) => void;
   onResetLocalData?: () => void;
   initialTab?: 'customization' | 'gameplay' | 'sync';
-  isMobile?: boolean;
+  firebaseUser?: FirebaseUser | null;
+  publicProfile?: OnlinePlayerPublic | null;
+  onOpenAuthModal?: () => void;
+  onOpenLegalModal?: (tab: LegalTab) => void;
+  onReopenCookieBanner?: () => void;
 }
 
 async function computeVaultToken(vaultId: string, pass: string): Promise<string> {
@@ -74,7 +85,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpdateProfile,
   onResetLocalData,
   initialTab,
-  isMobile = false,
+  firebaseUser,
+  publicProfile,
+  onOpenAuthModal,
+  onOpenLegalModal,
+  onReopenCookieBanner
 }) => {
   const { theme: currentTheme } = useAppTheme();
   const [current, setCurrent] = useState<UserSettings>(settings);
@@ -550,98 +565,96 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* SECTION 5: BOARD LAYOUT OPTIONS */}
-                            {!isMobile && (
-                              <div
-                                className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl text-xs"
-                                style={{
-                                  backgroundColor: currentTheme.cardSecondaryHex,
-                                  border: `1px solid ${currentTheme.cardBorderHex}`
-                                }}
-                              >
-                                <div className="sm:col-span-2">
-                                  <div className="flex items-center justify-between mb-1.5">
-                                    <label htmlFor="board-size-slider" className="font-bold uppercase tracking-wider text-[11px]" style={{ color: currentTheme.textSecondary }}>
-                                      Board Size
-                                    </label>
-                                    <span className="font-mono font-bold text-[11px]" style={{ color: currentTheme.accentHex }}>
-                                      {current.boardSize || 100}%
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-wrap items-center gap-3">
-                                    <div
-                                      className="flex items-center p-0.5 rounded-lg"
-                                      style={{ backgroundColor: currentTheme.cardHex, border: `1px solid ${currentTheme.cardBorderHex}` }}
-                                    >
-                                      {[
-                                        { label: 'S', value: 75 },
-                                        { label: 'M', value: 100 },
-                                        { label: 'L', value: 120 },
-                                        { label: 'XL', value: 140 }
-                                      ].map(preset => {
-                                        const active = (current.boardSize || 100) === preset.value;
-                                        return (
-                                          <button
-                                            key={preset.label}
-                                            type="button"
-                                            onClick={() => updateSettingImmediate('boardSize', preset.value)}
-                                            className="px-2.5 py-1 rounded-md text-[11px] font-bold transition"
-                                            style={
-                                              active
-                                                ? { backgroundColor: currentTheme.accentHex, color: currentTheme.accentTextHex }
-                                                : { color: currentTheme.textSecondary }
-                                            }
-                                            aria-label={`Board size ${preset.label} (${preset.value}%)`}
-                                          >
-                                            {preset.label}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                    <input
-                                      id="board-size-slider"
-                                      type="range"
-                                      min={60}
-                                      max={140}
-                                      step={5}
-                                      value={current.boardSize || 100}
-                                      onChange={e => updateSettingImmediate('boardSize', Number(e.target.value))}
-                                      className="flex-1 min-w-[140px]"
-                                      style={{ accentColor: currentTheme.accentHex }}
-                                    />
-                                  </div>
-                                  <p className="mt-1 text-[10px]" style={{ color: currentTheme.textMutedHex }}>
-                                    Larger sizes are limited by your window width.
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-              
-                            <div
-                              className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl text-xs"
-                              style={{
-                                backgroundColor: currentTheme.cardSecondaryHex,
-                                border: `1px solid ${currentTheme.cardBorderHex}`
-                              }}
-                            >
-                              <div>
-                                <label className="font-bold block mb-1.5 uppercase tracking-wider text-[11px]" style={{ color: currentTheme.textSecondary }}>
-                                  Eval Bar Position
-                                </label>
-                                <select
-                                  value={current.evalBarPosition}
-                                  onChange={e => updateSettingImmediate('evalBarPosition', e.target.value as 'left' | 'right' | 'hidden')}
-                                  className="w-full rounded-xl px-3 py-2 font-medium"
-                                  style={{
-                                    backgroundColor: currentTheme.cardHex,
-                                    border: `1px solid ${currentTheme.cardBorderHex}`,
-                                    color: currentTheme.textPrimary
-                                  }}
-                                >
-                                  <option value="left">{isMobile ? 'Above Board' : 'Left of Board'}</option>
-                                  <option value="right">{isMobile ? 'Below Board' : 'Right of Board'}</option>
-                                  <option value="hidden">Hidden (Focus Mode)</option>
-                                </select>
-                              </div>
+              <div
+                className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl text-xs"
+                style={{
+                  backgroundColor: currentTheme.cardSecondaryHex,
+                  border: `1px solid ${currentTheme.cardBorderHex}`
+                }}
+              >
+                <div className="sm:col-span-2">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label htmlFor="board-size-slider" className="font-bold uppercase tracking-wider text-[11px]" style={{ color: currentTheme.textSecondary }}>
+                      Board Size
+                    </label>
+                    <span className="font-mono font-bold text-[11px]" style={{ color: currentTheme.accentHex }}>
+                      {current.boardSize || 100}%
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div
+                      className="flex items-center p-0.5 rounded-lg"
+                      style={{ backgroundColor: currentTheme.cardHex, border: `1px solid ${currentTheme.cardBorderHex}` }}
+                    >
+                      {[
+                        { label: 'S', value: 75 },
+                        { label: 'M', value: 100 },
+                        { label: 'L', value: 120 },
+                        { label: 'XL', value: 140 }
+                      ].map(preset => {
+                        const active = (current.boardSize || 100) === preset.value;
+                        return (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => updateSettingImmediate('boardSize', preset.value)}
+                            className="px-2.5 py-1 rounded-md text-[11px] font-bold transition"
+                            style={
+                              active
+                                ? { backgroundColor: currentTheme.accentHex, color: currentTheme.accentTextHex }
+                                : { color: currentTheme.textSecondary }
+                            }
+                            aria-label={`Board size ${preset.label} (${preset.value}%)`}
+                          >
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <input
+                      id="board-size-slider"
+                      type="range"
+                      min={60}
+                      max={140}
+                      step={5}
+                      value={current.boardSize || 100}
+                      onChange={e => updateSettingImmediate('boardSize', Number(e.target.value))}
+                      className="flex-1 min-w-[140px]"
+                      style={{ accentColor: currentTheme.accentHex }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[10px]" style={{ color: currentTheme.textMutedHex }}>
+                    Larger sizes are limited by your window width.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl text-xs"
+                style={{
+                  backgroundColor: currentTheme.cardSecondaryHex,
+                  border: `1px solid ${currentTheme.cardBorderHex}`
+                }}
+              >
+                <div>
+                  <label className="font-bold block mb-1.5 uppercase tracking-wider text-[11px]" style={{ color: currentTheme.textSecondary }}>
+                    Eval Bar Position
+                  </label>
+                  <select
+                    value={current.evalBarPosition}
+                    onChange={e => updateSettingImmediate('evalBarPosition', e.target.value as 'left' | 'right' | 'hidden')}
+                    className="w-full rounded-xl px-3 py-2 font-medium"
+                    style={{
+                      backgroundColor: currentTheme.cardHex,
+                      border: `1px solid ${currentTheme.cardBorderHex}`,
+                      color: currentTheme.textPrimary
+                    }}
+                  >
+                    <option value="left">Left / Above Board</option>
+                    <option value="right">Right / Below Board</option>
+                    <option value="hidden">Hidden (Focus Mode)</option>
+                  </select>
+                </div>
               
                               <div>
                                 <label className="font-bold block mb-1.5 uppercase tracking-wider text-[11px]" style={{ color: currentTheme.textSecondary }}>
@@ -1284,6 +1297,86 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Google Account, Free Plan & Easy Cancel / Delete + Cookie & Legal Controls */}
+              {onOpenAuthModal && (
+                <div
+                  className="p-4 rounded-xl flex flex-col gap-3 border"
+                  style={{
+                    backgroundColor: currentTheme.cardSecondaryHex,
+                    borderColor: currentTheme.cardBorderHex
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      {firebaseUser ? (
+                        <UserCheck className="w-4 h-4" style={{ color: currentTheme.accentHex }} />
+                      ) : (
+                        <Globe className="w-4 h-4" style={{ color: currentTheme.accentHex }} />
+                      )}
+                      <div className="font-bold text-xs" style={{ color: currentTheme.textPrimary }}>
+                        Online Classic Account &amp; Data Controls
+                      </div>
+                    </div>
+                    <span className="font-mono text-[11px] font-bold" style={{ color: currentTheme.accentHex }}>
+                      Free Plan ($0)
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] leading-relaxed" style={{ color: currentTheme.textMutedHex }}>
+                    {firebaseUser
+                      ? `Signed in with Google as ${publicProfile?.username || firebaseUser.displayName || firebaseUser.email}. Online Classic ratings & challenges sync across both Web and Android APK.`
+                      : 'Sign in with Google (13+ age check required) to unlock rated Classic Online matches, private friend links, and account deletion/export controls.'}
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={onOpenAuthModal}
+                      className="px-3 py-1.5 rounded-lg font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer"
+                      style={{
+                        backgroundColor: currentTheme.accentHex,
+                        color: currentTheme.accentTextHex
+                      }}
+                    >
+                      {firebaseUser ? <UserCheck className="w-3.5 h-3.5" /> : <Globe className="w-3.5 h-3.5" />}
+                      <span>{firebaseUser ? 'Manage Account / Cancel / Delete' : 'Sign In with Google'}</span>
+                    </button>
+
+                    {onReopenCookieBanner && (
+                      <button
+                        type="button"
+                        onClick={onReopenCookieBanner}
+                        className="px-3 py-1.5 rounded-lg border font-semibold text-xs inline-flex items-center gap-1.5 cursor-pointer"
+                        style={{
+                          backgroundColor: currentTheme.cardHex,
+                          borderColor: currentTheme.cardBorderHex,
+                          color: currentTheme.textPrimary
+                        }}
+                      >
+                        <Cookie className="w-3.5 h-3.5" style={{ color: currentTheme.accentHex }} />
+                        <span>Cookie Preferences</span>
+                      </button>
+                    )}
+
+                    {onOpenLegalModal && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenLegalModal('refund')}
+                        className="px-3 py-1.5 rounded-lg border font-semibold text-xs inline-flex items-center gap-1.5 cursor-pointer"
+                        style={{
+                          backgroundColor: currentTheme.cardHex,
+                          borderColor: currentTheme.cardBorderHex,
+                          color: currentTheme.textPrimary
+                        }}
+                      >
+                        <Receipt className="w-3.5 h-3.5" style={{ color: currentTheme.accentHex }} />
+                        <span>Refund Policy &amp; SDK Audit</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {onResetLocalData && (
                 <div

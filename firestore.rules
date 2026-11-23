@@ -1,0 +1,381 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ---- Global Security Primitives ----
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedSignedIn() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerifiedSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidShortId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 64 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // ---- Validation Helper: UserPrivate ----
+    function isValidUserPrivate(data) {
+      return data.keys().hasAll([
+          'uid', 'email', 'ageConfirmed', 'cookieConsent',
+          'subscriptionTier', 'acceptedTermsAt', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'email', 'ageConfirmed', 'cookieConsent',
+          'subscriptionTier', 'acceptedTermsAt', 'createdAt', 'updatedAt'
+        ])
+        && data.uid is string
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.email is string
+        && data.email.size() >= 3
+        && data.email.size() <= 254
+        && data.ageConfirmed is bool
+        && data.ageConfirmed == true
+        && data.cookieConsent in ['all', 'essential']
+        && data.subscriptionTier == 'free'
+        && data.acceptedTermsAt is timestamp
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // ---- Validation Helper: PlayerPublic ----
+    function isValidPlayerPublic(data) {
+      return data.keys().hasAll([
+          'uid', 'username', 'title', 'avatarSeed',
+          'bulletElo', 'blitzElo', 'rapidElo', 'classicalElo',
+          'onlineGames', 'onlineWins', 'onlineDraws', 'onlineLosses',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'username', 'title', 'avatarSeed',
+          'bulletElo', 'blitzElo', 'rapidElo', 'classicalElo',
+          'onlineGames', 'onlineWins', 'onlineDraws', 'onlineLosses',
+          'createdAt', 'updatedAt'
+        ])
+        && data.uid is string
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.username is string
+        && data.username.size() >= 2
+        && data.username.size() <= 32
+        && data.username.matches('^[a-zA-Z0-9_ .\\-]+$')
+        && data.title is string
+        && data.title.size() <= 8
+        && data.avatarSeed is string
+        && data.avatarSeed.size() <= 16
+        && data.bulletElo is number && data.bulletElo >= 100 && data.bulletElo <= 3500
+        && data.blitzElo is number && data.blitzElo >= 100 && data.blitzElo <= 3500
+        && data.rapidElo is number && data.rapidElo >= 100 && data.rapidElo <= 3500
+        && data.classicalElo is number && data.classicalElo >= 100 && data.classicalElo <= 3500
+        && data.onlineGames is number && data.onlineGames >= 0 && data.onlineGames <= 1000000
+        && data.onlineWins is number && data.onlineWins >= 0 && data.onlineWins <= 1000000
+        && data.onlineDraws is number && data.onlineDraws >= 0 && data.onlineDraws <= 1000000
+        && data.onlineLosses is number && data.onlineLosses >= 0 && data.onlineLosses <= 1000000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // ---- Validation Helper: OnlineMatch (Classic Variant Only, Any Time Control) ----
+    function isValidOnlineMatch(data) {
+      return data.keys().hasAll([
+          'matchId', 'inviteCode', 'variant', 'isPublicSeek', 'rated', 'status',
+          'creatorId', 'creatorColorPref', 'whiteUid', 'blackUid',
+          'whiteName', 'blackName', 'whiteElo', 'blackElo',
+          'timeControlType', 'timeControlLabel', 'baseSeconds', 'incrementSeconds', 'isUnlimited',
+          'fen', 'pgn', 'lastMoveUci', 'lastMoveSan', 'movesCount', 'turn',
+          'whiteTimeMs', 'blackTimeMs', 'drawOfferBy', 'takebackOfferBy',
+          'winner', 'result', 'reason', 'rematchMatchId',
+          'createdAt', 'lastMoveAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'matchId', 'inviteCode', 'variant', 'isPublicSeek', 'rated', 'status',
+          'creatorId', 'creatorColorPref', 'whiteUid', 'blackUid',
+          'whiteName', 'blackName', 'whiteElo', 'blackElo',
+          'timeControlType', 'timeControlLabel', 'baseSeconds', 'incrementSeconds', 'isUnlimited',
+          'fen', 'pgn', 'lastMoveUci', 'lastMoveSan', 'movesCount', 'turn',
+          'whiteTimeMs', 'blackTimeMs', 'drawOfferBy', 'takebackOfferBy',
+          'winner', 'result', 'reason', 'rematchMatchId',
+          'createdAt', 'lastMoveAt', 'updatedAt'
+        ])
+        && isValidShortId(data.matchId)
+        && data.inviteCode is string
+        && data.inviteCode.size() >= 6 && data.inviteCode.size() <= 12
+        && data.inviteCode.matches('^[A-Z0-9]+$')
+        // Strictly Classic ('standard') variant only
+        && data.variant is string && data.variant == 'standard'
+        && data.isPublicSeek is bool
+        && data.rated is bool
+        && data.status in ['waiting', 'active', 'finished', 'cancelled']
+        && isValidId(data.creatorId)
+        && data.creatorColorPref in ['w', 'b', 'random']
+        && data.whiteUid is string && data.whiteUid.size() <= 128
+        && data.blackUid is string && data.blackUid.size() <= 128
+        && data.whiteName is string && data.whiteName.size() <= 32
+        && data.blackName is string && data.blackName.size() <= 32
+        && data.whiteElo is number && data.whiteElo >= 100 && data.whiteElo <= 3500
+        && data.blackElo is number && data.blackElo >= 100 && data.blackElo <= 3500
+        && data.timeControlType in ['bullet', 'blitz', 'rapid', 'classical', 'unlimited', 'custom']
+        && data.timeControlLabel is string && data.timeControlLabel.size() >= 1 && data.timeControlLabel.size() <= 40
+        && data.baseSeconds is number && data.baseSeconds >= 0 && data.baseSeconds <= 10800
+        && data.incrementSeconds is number && data.incrementSeconds >= 0 && data.incrementSeconds <= 180
+        && data.isUnlimited is bool
+        && data.fen is string && data.fen.size() >= 15 && data.fen.size() <= 140
+        && data.pgn is string && data.pgn.size() <= 16000
+        && data.lastMoveUci is string && data.lastMoveUci.size() <= 10
+        && data.lastMoveSan is string && data.lastMoveSan.size() <= 16
+        && data.movesCount is number && data.movesCount >= 0 && data.movesCount <= 600
+        && data.turn in ['w', 'b']
+        && data.whiteTimeMs is number && data.whiteTimeMs >= 0 && data.whiteTimeMs <= 10800000
+        && data.blackTimeMs is number && data.blackTimeMs >= 0 && data.blackTimeMs <= 10800000
+        && data.drawOfferBy in ['', 'w', 'b']
+        && data.takebackOfferBy in ['', 'w', 'b']
+        && data.winner in ['', 'w', 'b', 'draw']
+        && data.result in ['*', '1-0', '0-1', '1/2-1/2']
+        && data.reason in ['none', 'checkmate', 'resignation', 'timeout', 'stalemate', 'draw_agreement', 'repetition', 'insufficient', 'cancelled']
+        && data.rematchMatchId is string && data.rematchMatchId.size() <= 64
+        && data.createdAt is timestamp
+        && data.lastMoveAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // ---- Validation Helper: OnlineChatMessage ----
+    function isValidOnlineChatMessage(data, matchId, messageId) {
+      return data.keys().hasAll([
+          'messageId', 'matchId', 'senderUid', 'senderName',
+          'whiteUid', 'blackUid', 'text', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'messageId', 'matchId', 'senderUid', 'senderName',
+          'whiteUid', 'blackUid', 'text', 'createdAt'
+        ])
+        && isValidShortId(data.messageId)
+        && data.messageId == messageId
+        && isValidShortId(data.matchId)
+        && data.matchId == matchId
+        && isValidId(data.senderUid)
+        && data.senderUid == request.auth.uid
+        && data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 32
+        && data.whiteUid is string && data.whiteUid.size() <= 128
+        && data.blackUid is string && data.blackUid.size() <= 128
+        && data.text is string && data.text.size() >= 1 && data.text.size() <= 160
+        && data.createdAt is timestamp;
+    }
+
+    // ---- Action Helpers for OnlineMatch ----
+    function isMatchParticipant(data) {
+      return isVerifiedSignedIn() && (
+        (data.whiteUid != '' && data.whiteUid == request.auth.uid) ||
+        (data.blackUid != '' && data.blackUid == request.auth.uid)
+      );
+    }
+
+    function isImmutableMatchFieldsPreserved() {
+      return incoming().matchId == existing().matchId
+        && incoming().inviteCode == existing().inviteCode
+        && incoming().variant == existing().variant
+        && incoming().creatorId == existing().creatorId
+        && incoming().creatorColorPref == existing().creatorColorPref
+        && incoming().timeControlType == existing().timeControlType
+        && incoming().timeControlLabel == existing().timeControlLabel
+        && incoming().baseSeconds == existing().baseSeconds
+        && incoming().incrementSeconds == existing().incrementSeconds
+        && incoming().isUnlimited == existing().isUnlimited
+        && incoming().rated == existing().rated
+        && incoming().createdAt == existing().createdAt;
+    }
+
+    function isJoinMatchAction() {
+      return existing().status == 'waiting'
+        && incoming().status == 'active'
+        && request.auth.uid != existing().creatorId
+        && incoming().whiteUid != ''
+        && incoming().blackUid != ''
+        && (
+          (
+            existing().whiteUid == ''
+            && incoming().whiteUid == request.auth.uid
+            && incoming().blackUid == existing().blackUid
+            && incoming().blackName == existing().blackName
+            && incoming().blackElo == existing().blackElo
+          ) || (
+            existing().blackUid == ''
+            && incoming().blackUid == request.auth.uid
+            && incoming().whiteUid == existing().whiteUid
+            && incoming().whiteName == existing().whiteName
+            && incoming().whiteElo == existing().whiteElo
+          )
+        )
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'status', 'whiteUid', 'blackUid', 'whiteName', 'blackName',
+          'whiteElo', 'blackElo', 'lastMoveAt', 'updatedAt'
+        ])
+        && incoming().lastMoveAt == request.time
+        && incoming().updatedAt == request.time;
+    }
+
+    function isCancelWaitingAction() {
+      return existing().status == 'waiting'
+        && existing().creatorId == request.auth.uid
+        && incoming().status == 'cancelled'
+        && incoming().reason == 'cancelled'
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'reason', 'updatedAt'])
+        && incoming().updatedAt == request.time;
+    }
+
+    function isActiveMatchPlayAction() {
+      return existing().status == 'active'
+        && isMatchParticipant(existing())
+        && incoming().status in ['active', 'finished']
+        && incoming().whiteUid == existing().whiteUid
+        && incoming().blackUid == existing().blackUid
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'status', 'fen', 'pgn', 'lastMoveUci', 'lastMoveSan', 'movesCount', 'turn',
+          'whiteTimeMs', 'blackTimeMs', 'drawOfferBy', 'takebackOfferBy',
+          'winner', 'result', 'reason', 'lastMoveAt', 'updatedAt'
+        ])
+        && incoming().updatedAt == request.time;
+    }
+
+    function isLinkRematchAction() {
+      return existing().status == 'finished'
+        && existing().rematchMatchId == ''
+        && isMatchParticipant(existing())
+        && incoming().status == 'finished'
+        && incoming().winner == existing().winner
+        && incoming().result == existing().result
+        && incoming().reason == existing().reason
+        && isValidShortId(incoming().rematchMatchId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['rematchMatchId', 'updatedAt'])
+        && incoming().updatedAt == request.time;
+    }
+
+    // ---- Collection: usersPrivate (Strict PII Isolation) ----
+    match /usersPrivate/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserPrivate(incoming())
+        && incoming().acceptedTermsAt == request.time
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserPrivate(incoming())
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && incoming().createdAt == existing().createdAt
+        && incoming().acceptedTermsAt == existing().acceptedTermsAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['cookieConsent', 'ageConfirmed', 'updatedAt']);
+      allow delete: if isValidId(userId) && isOwner(userId);
+    }
+
+    // ---- Collection: playersPublic (Non-PII Public Chess Cards & Leaderboard) ----
+    match /playersPublic/{userId} {
+      allow get: if isValidId(userId) && isVerifiedSignedIn();
+      allow list: if isVerifiedSignedIn();
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidPlayerPublic(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidPlayerPublic(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'username', 'title', 'avatarSeed',
+          'bulletElo', 'blitzElo', 'rapidElo', 'classicalElo',
+          'onlineGames', 'onlineWins', 'onlineDraws', 'onlineLosses',
+          'updatedAt'
+        ]);
+      allow delete: if isValidId(userId) && isOwner(userId);
+    }
+
+    // ---- Collection: onlineMatches (Classic Chess Online Only) ----
+    match /onlineMatches/{matchId} {
+      allow get: if isValidShortId(matchId) && isVerifiedSignedIn();
+      allow list: if isVerifiedSignedIn()
+        && resource.data.variant == 'standard'
+        && resource.data.status in ['waiting', 'active', 'finished'];
+      allow create: if isValidShortId(matchId)
+        && isVerifiedSignedIn()
+        && isValidOnlineMatch(incoming())
+        && incoming().matchId == matchId
+        && incoming().creatorId == request.auth.uid
+        && incoming().status == 'waiting'
+        && incoming().movesCount == 0
+        && incoming().winner == ''
+        && incoming().result == '*'
+        && incoming().reason == 'none'
+        && incoming().rematchMatchId == ''
+        && incoming().createdAt == request.time
+        && incoming().lastMoveAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidShortId(matchId)
+        && isVerifiedSignedIn()
+        && isValidOnlineMatch(incoming())
+        && isImmutableMatchFieldsPreserved()
+        && (
+          isJoinMatchAction()
+          || isCancelWaitingAction()
+          || isActiveMatchPlayAction()
+          || isLinkRematchAction()
+        );
+      allow delete: if isValidShortId(matchId)
+        && isVerifiedSignedIn()
+        && existing().creatorId == request.auth.uid
+        && existing().status in ['waiting', 'cancelled'];
+
+      // ---- Subcollection: chat (Master Gate) ----
+      match /chat/{messageId} {
+        allow get: if isValidShortId(matchId)
+          && isValidShortId(messageId)
+          && isVerifiedSignedIn()
+          && exists(/databases/$(database)/documents/onlineMatches/$(matchId))
+          && isMatchParticipant(get(/databases/$(database)/documents/onlineMatches/$(matchId)).data);
+        allow list: if isVerifiedSignedIn()
+          && (
+            resource.data.whiteUid == request.auth.uid
+            || resource.data.blackUid == request.auth.uid
+          );
+        allow create: if isValidShortId(matchId)
+          && isValidShortId(messageId)
+          && isVerifiedSignedIn()
+          && isValidOnlineChatMessage(incoming(), matchId, messageId)
+          && incoming().createdAt == request.time
+          && exists(/databases/$(database)/documents/onlineMatches/$(matchId))
+          && isMatchParticipant(get(/databases/$(database)/documents/onlineMatches/$(matchId)).data)
+          && incoming().whiteUid == get(/databases/$(database)/documents/onlineMatches/$(matchId)).data.whiteUid
+          && incoming().blackUid == get(/databases/$(database)/documents/onlineMatches/$(matchId)).data.blackUid;
+        allow update, delete: if false;
+      }
+    }
+  }
+}

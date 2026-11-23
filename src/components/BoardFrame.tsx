@@ -885,14 +885,14 @@ export const BoardFrame: React.FC<BoardFrameProps> = React.memo(({ frame, still,
   );
 
   // Ornament box size (as % of frame width) and its offset from the outer edge.
-  // Large ornaments are pushed outward so they barely overlap the squares.
-  const offsetFor = (size: number) => Math.min((t - size) / 2, t * 1.1 - size);
+  // Keep ornaments seated cleanly inside the frame band without overflowing adjacent player plates.
+  const offsetFor = (size: number) => Math.max(-t * 0.06, (t - size) / 2);
 
   const sizes = [
-    set.corner ? t * (set.cornerScale ?? 1.4) : 0,
-    set.top || set.bottom ? t * (set.edgeScale ?? 1.4) : 0,
-    set.side ? t * (set.sideScale ?? 1.3) : 0,
-    set.quarter ? t * (set.quarterScale ?? 0.7) : 0
+    set.corner ? t * Math.min(set.cornerScale ?? 1.05, 1.08) : 0,
+    set.top || set.bottom ? t * Math.min(set.edgeScale ?? 0.92, 0.94) : 0,
+    set.side ? t * Math.min(set.sideScale ?? 0.92, 0.94) : 0,
+    set.quarter ? t * Math.min(set.quarterScale ?? 0.6, 0.7) : 0
   ];
   const protrusion = Math.max(0, ...sizes.filter(Boolean).map(sz => -offsetFor(sz)));
 
